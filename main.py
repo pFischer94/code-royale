@@ -94,6 +94,12 @@ class Site:
                 return True
         return False
 
+    def is_on_my_side(self) -> bool:
+        if center_of_towers[0] > CENTER[0]:
+            return self.pos[0] >= CENTER[0]
+        else:
+            return self.pos[0] < CENTER[0]
+
     def __str__(self) -> str:
         res: str = ""
         # all
@@ -110,6 +116,7 @@ class Site:
         # all
         wofu = "WOFU" if self.was_once_fully_upgraded else ""
         res += f"{wofu}"
+        # res += f" pos[0]: {self.pos[0]}, pos[1]: {self.pos[1]}"
         return res;
     
 class FriendlySites:
@@ -170,30 +177,47 @@ def update_units() -> list[Unit]:
         units.append(Unit([x, y], UnitType(type), Owner(owner), health))
     return units
 
-def get_queens(units: list[Unit]) -> tuple[Unit, Unit]:
+def get_queens(units: list[Unit], center_of_towers: list[int]) -> tuple[Unit, Unit, list[int]]:
     my_queen = next(unit for unit in units if unit.type == UnitType.QUEEN and unit.owner == Owner.FRIEND)
+    if center_of_towers[0] < 0:
+        if my_queen.pos[0] > CENTER[0]:
+            center_of_towers = [CENTER[0] + CENTER_GAP, CENTER[1]]
+        else:
+            center_of_towers = [CENTER[0] - CENTER_GAP, CENTER[1]]
     enemy_queen = next(unit for unit in units if unit.type == UnitType.QUEEN and unit.owner == Owner.ENEMY)
-    return my_queen, enemy_queen
+    return my_queen, enemy_queen, center_of_towers
 
-def get_build_string(closest_empty_side_id: int, friendly_sites: FriendlySites) -> str:
+def get_new_tower_id() -> int:
+    available_sites = [site for site in sites.values() if site.is_empty_or_enemy_non_tower()]
+    sorted_sites = sorted(available_sites, key=lambda site: site.dist_to(center_of_towers))
+    return sorted_sites[0].id if sorted_sites else -1
+
+def get_new_mine_id() -> int:
+    available_sites = [site for site in sites.values() if site.is_empty_or_enemy_non_tower()]
+    sorted_sites = sorted(available_sites, key=lambda site: site.pos[0], reverse=center_of_towers[0] > CENTER[0])
+    return sorted_sites[0].id if sorted_sites else -1
+    
+def get_build_string(build_id: int, friendly_sites: FriendlySites) -> str:
     upgradeable_mines = friendly_sites.get_mines_to_upgrade()
     upgradeable_towers = friendly_sites.get_towers_to_upgrade()
     
-    # mines
-    if len(upgradeable_mines) > 0:
-        return f"BUILD {upgradeable_mines[0].id} MINE"
-    elif len(friendly_sites.get_by_type(SiteType.GOLDMINE)) < 3 and closest_empty_side_id >= 0:
-        return f"BUILD {closest_empty_side_id} MINE"
-    
     # barracks
-    elif len(friendly_sites.get_barracks_producing(UnitType.KNIGHT)) < 1 and closest_empty_side_id >= 0: 
-        return f"BUILD {closest_empty_side_id} BARRACKS-KNIGHT"
+    if len(friendly_sites.get_barracks_producing(UnitType.KNIGHT)) < 1 and build_id >= 0: 
+        return f"BUILD {build_id} BARRACKS-KNIGHT"
     
     # towers
-    elif len(upgradeable_towers) > 0: 
+    new_tower_id = get_new_tower_id()
+    if len(friendly_sites.get_by_type(SiteType.TOWER)) < 3 and new_tower_id >= 0:
+        return f"BUILD {new_tower_id} TOWER"
+    if upgradeable_towers: 
         return f"BUILD {upgradeable_towers[0].id} TOWER"
-    elif closest_empty_side_id >= 0:
-        return f"BUILD {closest_empty_side_id} TOWER"
+    
+    # mines
+    new_mine_id = get_new_mine_id()
+    if len(upgradeable_mines) > 0:
+        return f"BUILD {upgradeable_mines[0].id} MINE"
+    if len(friendly_sites.get_by_type(SiteType.GOLDMINE)) < 3 and new_mine_id >= 0:
+        return f"BUILD {new_mine_id} MINE"
     else:
         return f"BUILD {friendly_sites.get_by_type(SiteType.TOWER)[0].id} TOWER"
 
@@ -203,7 +227,7 @@ def find_closest_safely_buildable_site_id(sites: dict[int, Site], pos: list[int]
     min_dist = 10000
     id = -1
     for site in sites.values():
-        if site.is_empty_or_enemy_non_tower() and not site.is_inside_enemy_tower_range(enemy_towers):
+        if site.is_empty_or_enemy_non_tower() and site.is_on_my_side() and not site.is_inside_enemy_tower_range(enemy_towers):
             dist = site.dist_to(pos)
             if dist < min_dist:
                 min_dist = dist
@@ -228,6 +252,10 @@ def find_n_closest_available_barracks(n: int, sites: dict[int, Site], pos: list[
 sites: dict[int, Site] = {}
 num_sites = int(input())
 
+CENTER: list[int] = [980, 500]
+CENTER_GAP: int = 20
+center_of_towers: list[int] = [-1, -1]
+
 for i in range(num_sites):
     id, x, y, radius = [int(j) for j in input().split()]
     sites[id] = Site(id, [x, y], radius)
@@ -239,13 +267,13 @@ while True:
     
     update_sites(sites)
     friendly_sites = FriendlySites(sites)
-    print(friendly_sites, file=sys.stderr, flush=True)
+    # print(friendly_sites, file=sys.stderr, flush=True)
 
     units = update_units()
-    my_queen, enemy_queen = get_queens(units)
+    my_queen, enemy_queen, center_of_towers = get_queens(units, center_of_towers)
     
-    closest_empty_site_id = find_closest_safely_buildable_site_id(sites, my_queen.pos)
-    build_string = get_build_string(closest_empty_site_id, friendly_sites)
+    build_id = find_closest_safely_buildable_site_id(sites, my_queen.pos)
+    build_string = get_build_string(build_id, friendly_sites)
     print(build_string)
     
     train_ids: list[int] = find_n_closest_available_barracks(int(gold / 80), sites, enemy_queen.pos)
