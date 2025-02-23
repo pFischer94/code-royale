@@ -83,6 +83,24 @@ class Site:
             self.max_gold_rate = 0
             self.busy_turns = param_1
             self.produces_unit = UnitType(param_2)
+            
+    def __str__(self) -> str:
+        res: str = ""
+        # all
+        res += f"  {self.id:2d} | {self.type.name:8s} | "
+        # goldmines
+        if self.type == SiteType.GOLDMINE:
+            res += f"    {self.max_gold_rate:2d} |       | "
+        # towers
+        elif self.type == SiteType.TOWER:
+            res += f"       |   {self.attack_radius:3d} | "
+        # barracks
+        else:
+            res += "       |       |     "
+        # all
+        wofu = "WOFU" if self.was_once_fully_upgraded else ""
+        res += f"{wofu}"
+        return res;
     
 class FriendlySites:
     def __init__(self, sites: dict[int, Site]):
@@ -108,24 +126,7 @@ class FriendlySites:
         res += "  ID | type     | max_GR | att_r | WOFU \n"
         res += " ----|----------|--------|-------|------ \n"
         for site in sorted(self.sites, key=lambda site: site.type.name):
-            
-            # all
-            res += f"  {site.id:2d} | {site.type.name:8s} | "
-            
-            # mines
-            if site.type == SiteType.GOLDMINE:
-                res += f"    {site.max_gold_rate:2d} |       | "
-            
-            # towers
-            elif site.type == SiteType.TOWER:
-                res += f"       |   {site.attack_radius:3d} | "
-                
-            # barracks
-            else:
-                res += "       |       |     "
-            
-            wofu = "WOFU" if site.was_once_fully_upgraded else ""
-            res += f"{wofu} \n"
+            res += f"{str(site)} \n"
         return res
 
 class Unit:
@@ -184,11 +185,11 @@ def get_build_string(closest_empty_side_id: int, friendly_sites: FriendlySites) 
     else:
         return f"BUILD {closest_empty_side_id} TOWER"
 
-def find_closest_not_friendly_site_id_to_pos(sites: dict[int, Site], pos: list[int]) -> int:
+def find_closest_empty_site_id_to_pos(sites: dict[int, Site], pos: list[int]) -> int:
     min_dist = 10000
     id = -1
     for site in sites.values():
-        if site.owner != Owner.FRIEND:
+        if site.type == SiteType.EMPTY:
             dist = site.dist_to(pos)
             if dist < min_dist:
                 min_dist = dist
@@ -229,7 +230,7 @@ while True:
     units = update_units()
     my_queen, enemy_queen = get_queens(units)
     
-    closest_empty_site_id = find_closest_not_friendly_site_id_to_pos(sites, my_queen.pos)
+    closest_empty_site_id = find_closest_empty_site_id_to_pos(sites, my_queen.pos)
     build_string = get_build_string(closest_empty_site_id, friendly_sites)
     print(build_string)
 
@@ -241,8 +242,6 @@ while True:
     
 
     
-# last rank 195
-
 # TODO: 1: dont rebuild mines
 # TODO: 2: dont run in towers
 # TODO: 3: stages:
