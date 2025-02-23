@@ -184,11 +184,11 @@ def get_build_string(closest_empty_side_id: int, friendly_sites: FriendlySites) 
     else:
         return f"BUILD {closest_empty_side_id} TOWER"
 
-def find_closest_empty_site_id_to_pos(sites: dict[int, Site], pos: list[int]) -> int:
+def find_closest_not_friendly_site_id_to_pos(sites: dict[int, Site], pos: list[int]) -> int:
     min_dist = 10000
     id = -1
     for site in sites.values():
-        if site.type == SiteType.EMPTY:
+        if site.owner != Owner.FRIEND:
             dist = site.dist_to(pos)
             if dist < min_dist:
                 min_dist = dist
@@ -229,7 +229,7 @@ while True:
     units = update_units()
     my_queen, enemy_queen = get_queens(units)
     
-    closest_empty_site_id = find_closest_empty_site_id_to_pos(sites, my_queen.pos)
+    closest_empty_site_id = find_closest_not_friendly_site_id_to_pos(sites, my_queen.pos)
     build_string = get_build_string(closest_empty_site_id, friendly_sites)
     print(build_string)
 
@@ -239,14 +239,19 @@ while True:
         train_str += " " + str(id)
     print(f"TRAIN{train_str}")
     
-    # TODO: 1: dont rebuild mines
-    # TODO: 2: dont run in towers
-    # TODO: 3: stages:
-    #           0. save 3 mine spots
-    #           1. barrack, one push
-    #           2. build and upgrade 3-5 towers
-    #           3. build on mine spots
-    #           4. save for huge wave
-    # TODO: 4: counter many towers: giants or save gold for huge wave
+
     
-    # TODO: if all sites full
+# last rank 195
+
+# TODO: 1: dont rebuild mines
+# TODO: 2: dont run in towers
+# TODO: 3: stages:
+#           0. save 3 mine spots
+#           1. barrack, one push
+#           2. build and upgrade 3-5 towers
+#           3. build on mine spots
+#           4. save for huge wave
+# TODO: 4: counter many towers: giants or save gold for huge wave
+
+# TODO: does a second mine on used site give new gold?
+# TODO: if all sites full
