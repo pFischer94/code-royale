@@ -185,11 +185,11 @@ def get_build_string(closest_empty_side_id: int, friendly_sites: FriendlySites) 
     else:
         return f"BUILD {closest_empty_side_id} TOWER"
 
-def find_closest_empty_site_id_to_pos(sites: dict[int, Site], pos: list[int]) -> int:
+def find_closest_buildable_site_id(sites: dict[int, Site], pos: list[int]) -> int:
     min_dist = 10000
     id = -1
     for site in sites.values():
-        if site.type == SiteType.EMPTY:
+        if site.type == SiteType.EMPTY or (site.owner == Owner.ENEMY and site.type != SiteType.TOWER):
             dist = site.dist_to(pos)
             if dist < min_dist:
                 min_dist = dist
@@ -230,10 +230,10 @@ while True:
     units = update_units()
     my_queen, enemy_queen = get_queens(units)
     
-    closest_empty_site_id = find_closest_empty_site_id_to_pos(sites, my_queen.pos)
+    closest_empty_site_id = find_closest_buildable_site_id(sites, my_queen.pos)
     build_string = get_build_string(closest_empty_site_id, friendly_sites)
     print(build_string)
-
+    
     train_ids: list[int] = find_n_closest_available_barracks(int(gold / 80), sites, enemy_queen.pos)
     train_str: str = ""
     for id in train_ids:
@@ -254,3 +254,5 @@ while True:
 
 # TODO: does a second mine on used site give new gold?
 # TODO: if all sites full
+
+# barracks and mines can be destroyed and built over by queen
