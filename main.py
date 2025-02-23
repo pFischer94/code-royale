@@ -83,7 +83,17 @@ class Site:
             self.max_gold_rate = 0
             self.busy_turns = param_1
             self.produces_unit = UnitType(param_2)
-            
+       
+    def is_empty_or_enemy_non_tower(self) -> bool:
+        return self.type == SiteType.EMPTY or (self.owner == Owner.ENEMY and self.type != SiteType.TOWER)
+         
+    def is_inside_enemy_tower_range(self, enemy_towers: list["Site"]) -> bool:
+        for tower in enemy_towers:
+            dist = self.dist_to(tower.pos)
+            if dist < tower.attack_radius:
+                return True
+        return False
+
     def __str__(self) -> str:
         res: str = ""
         # all
@@ -172,24 +182,28 @@ def get_build_string(closest_empty_side_id: int, friendly_sites: FriendlySites) 
     # mines
     if len(upgradeable_mines) > 0:
         return f"BUILD {upgradeable_mines[0].id} MINE"
-    elif len(friendly_sites.get_by_type(SiteType.GOLDMINE)) < 3:
+    elif len(friendly_sites.get_by_type(SiteType.GOLDMINE)) < 3 and closest_empty_side_id >= 0:
         return f"BUILD {closest_empty_side_id} MINE"
     
     # barracks
-    elif len(friendly_sites.get_barracks_producing(UnitType.KNIGHT)) < 1: 
+    elif len(friendly_sites.get_barracks_producing(UnitType.KNIGHT)) < 1 and closest_empty_side_id >= 0: 
         return f"BUILD {closest_empty_side_id} BARRACKS-KNIGHT"
     
     # towers
     elif len(upgradeable_towers) > 0: 
         return f"BUILD {upgradeable_towers[0].id} TOWER"
-    else:
+    elif closest_empty_side_id >= 0:
         return f"BUILD {closest_empty_side_id} TOWER"
+    else:
+        return f"BUILD {friendly_sites.get_by_type(SiteType.TOWER)[0].id} TOWER"
 
-def find_closest_buildable_site_id(sites: dict[int, Site], pos: list[int]) -> int:
+def find_closest_safely_buildable_site_id(sites: dict[int, Site], pos: list[int]) -> int:
+    enemy_towers = [site for site in sites.values() if site.owner == Owner.ENEMY and site.type == SiteType.TOWER]
+    
     min_dist = 10000
     id = -1
     for site in sites.values():
-        if site.type == SiteType.EMPTY or (site.owner == Owner.ENEMY and site.type != SiteType.TOWER):
+        if site.is_empty_or_enemy_non_tower() and not site.is_inside_enemy_tower_range(enemy_towers):
             dist = site.dist_to(pos)
             if dist < min_dist:
                 min_dist = dist
@@ -230,7 +244,7 @@ while True:
     units = update_units()
     my_queen, enemy_queen = get_queens(units)
     
-    closest_empty_site_id = find_closest_buildable_site_id(sites, my_queen.pos)
+    closest_empty_site_id = find_closest_safely_buildable_site_id(sites, my_queen.pos)
     build_string = get_build_string(closest_empty_site_id, friendly_sites)
     print(build_string)
     
@@ -243,7 +257,7 @@ while True:
 
     
 # TODO: 1: dont rebuild mines
-# TODO: 2: dont run in towers
+# DONE: 2: dont run in towers
 # TODO: 3: stages:
 #           0. save 3 mine spots
 #           1. barrack, one push
@@ -252,7 +266,7 @@ while True:
 #           4. save for huge wave
 # TODO: 4: counter many towers: giants or save gold for huge wave
 
-# TODO: does a second mine on used site give new gold?
 # TODO: if all sites full
 
+# a second mine on mined-out site does not give new gold
 # barracks and mines can be destroyed and built over by queen
