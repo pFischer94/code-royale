@@ -1,6 +1,5 @@
-import sys
 import math
-from enum import Enum
+import enum
 
 
 #
@@ -13,23 +12,28 @@ from enum import Enum
  #####  ####### #     #  #####   #####  #######  ##### 
 
 
-class SiteType(Enum):
+class SiteType(enum.Enum):
     EMPTY = -1
     GOLDMINE = 0
     TOWER = 1
     BARRACKS = 2
     
-class Owner(Enum):
+class Owner(enum.Enum):
     NONE = -1
     FRIEND = 0
     ENEMY = 1
     
-class UnitType(Enum):
+class UnitType(enum.Enum):
     NONE = -2
     QUEEN = -1
     KNIGHT = 0
     ARCHER = 1
     GIANT = 2
+
+class Side(enum.Enum):
+    UNKNOWN = 0
+    LEFT = 1
+    RIGHT = 2
 
 
 class Site:
@@ -101,6 +105,7 @@ class Site:
             return self.pos[0] < CENTER[0]
 
     def __str__(self) -> str:
+        return f"{self.id}"
         res: str = ""
         # all
         res += f"  {self.id:2d} | {self.type.name:8s} | "
@@ -146,6 +151,34 @@ class FriendlySites:
             res += f"{str(site)} \n"
         return res
 
+class SitesManager:
+    CENTER_X: int = 980
+    
+    def __init__(self):
+        self.__sites_dict: dict[int, Site] = {}
+        
+        num_sites = int(input())
+        for i in range(num_sites):
+            id, x, y, radius = [int(j) for j in input().split()]
+            self.__sites_dict[id] = Site(id, [x, y], radius)
+            
+        self.sites: list[Site] = [site for site in self.__sites_dict.values()]
+    
+    def __init__(self, site: Site):
+        self.__sites_dict: dict[int, Site] = {}
+        self.sites: list[Site] = [site for site in self.__sites_dict.values()]
+        self.__sites_dict[0] = site
+    
+    def update_sites(self):
+        for i in range(len(self.__sites_dict)):
+            id, gold, max_gold_rate, type_id, owner_id, param_1, param_2 = [int(j) for j in input().split()]
+            self.__sites_dict[id].update(gold, max_gold_rate, type_id, owner_id, param_1, param_2)
+    
+    @property
+    def friendly(self) -> list[Site]:
+        return [site for site in self.sites if site.owner == Owner.FRIEND]
+
+
 class Unit:
     def __init__(self, pos: list[int], type: UnitType, owner: Owner, health: int):
         self.pos = pos
@@ -163,11 +196,6 @@ class Unit:
 #       #     # #    ## #     #    #     #  #     # #    ## #     #
 #        #####  #     #  #####     #    ### ####### #     #  #####    
 
-
-def update_sites(sites: dict[int, Site]):
-    for i in range(len(sites)):
-        id, gold, max_gold_rate, type_id, owner_id, param_1, param_2 = [int(j) for j in input().split()]
-        sites[id].update(gold, max_gold_rate, type_id, owner_id, param_1, param_2)
 
 def update_units() -> list[Unit]:
     units: list[Unit] = []
@@ -249,39 +277,33 @@ def find_n_closest_available_barracks(n: int, sites: dict[int, Site], pos: list[
  #####  #     # #     # #######    ####### ####### ####### #      
 
 
-sites: dict[int, Site] = {}
-num_sites = int(input())
-
-CENTER: list[int] = [980, 500]
-CENTER_GAP: int = 20
-center_of_towers: list[int] = [-1, -1]
-
-for i in range(num_sites):
-    id, x, y, radius = [int(j) for j in input().split()]
-    sites[id] = Site(id, [x, y], radius)
-
-
-while True:
-    # touched_site: -1 if none
-    gold, touched_site = [int(i) for i in input().split()]
+# while True:
+#     # touched_site: -1 if none
+#     gold, touched_site = [int(i) for i in input().split()]
     
-    update_sites(sites)
-    friendly_sites = FriendlySites(sites)
-    # print(friendly_sites, file=sys.stderr, flush=True)
+#     update_sites(sites)
+#     friendly_sites = FriendlySites(sites)
+#     # print(friendly_sites, file=sys.stderr, flush=True)
 
-    units = update_units()
-    my_queen, enemy_queen, center_of_towers = get_queens(units, center_of_towers)
+#     units = update_units()
+#     my_queen, enemy_queen, center_of_towers = get_queens(units, center_of_towers)
     
-    build_id = find_closest_safely_buildable_site_id(sites, my_queen.pos)
-    build_string = get_build_string(build_id, friendly_sites)
-    print(build_string)
+#     build_id = find_closest_safely_buildable_site_id(sites, my_queen.pos)
+#     build_string = get_build_string(build_id, friendly_sites)
+#     print(build_string)
     
-    train_ids: list[int] = find_n_closest_available_barracks(int(gold / 80), sites, enemy_queen.pos)
-    train_str: str = ""
-    for id in train_ids:
-        train_str += " " + str(id)
-    print(f"TRAIN{train_str}")
+#     train_ids: list[int] = find_n_closest_available_barracks(int(gold / 80), sites, enemy_queen.pos)
+#     train_str: str = ""
+#     for id in train_ids:
+#         train_str += " " + str(id)
+#     print(f"TRAIN{train_str}")
     
+print("Hello")
+sm = SitesManager(Site(0, [1, 2], 3))
+print(sm.sites)
+print(sm.friendly)
+sm.sites[0].owner = Owner.FRIEND
+print(sm.friendly)
 
     
 # TODO: 1: dont rebuild mines

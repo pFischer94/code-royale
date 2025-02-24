@@ -1,5 +1,8 @@
-from enum import Enum
+import enum
 
-class SiteType(Enum):
-    EMPTY = 0
-    BARRACK = 1
+class SiteType(enum.Enum):
+    EMPTY = -1
+    GOLDMINE = 0
+    TOWER = 1
+    BARRACKS = 2
+    
