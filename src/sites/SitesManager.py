@@ -1,6 +1,6 @@
-from src.sites.SitesAccessBuilder import SitesAccessBuilder
-from src.sites.Site import Site
-from src.owner.Owner import Owner
+from sites.SitesAccessBuilder import SitesAccessBuilder
+from sites.Site import Site
+from owner.Owner import Owner
 
 class SitesManager:
     __CENTER_X: int = 980

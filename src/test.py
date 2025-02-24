@@ -1,10 +1,10 @@
-from src.sites.SitesAccessBuilder import SitesAccessBuilder
-from src.owner.Owner import Owner
-from src.sites.SiteType import SiteType
-from src.sites.SitesManager import SitesManager
-from src.sites.Site import Site
-from src.units.Unit import Unit
-from src.units.UnitType import UnitType
+from sites.SitesAccessBuilder import SitesAccessBuilder
+from owner.Owner import Owner
+from sites.SiteType import SiteType
+from sites.SitesManager import SitesManager
+from sites.Site import Site
+from units.Unit import Unit
+from units.UnitType import UnitType
 
 print()
 

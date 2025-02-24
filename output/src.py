@@ -181,7 +181,7 @@ print("site", site)
 SM = SitesManager(site)
 print("sm", SM)
 
-sab: SitesAccessBuilder = SM.sites
+sab: SitesAccessBuilder = SitesAccessBuilder([site])
 print("sab", sab)
 print("sab.sites", sab.sites)
 print("sab.sites[0]", sab.sites[0])

@@ -1,4 +1,4 @@
-from src.sites.Site import Site
+from sites.Site import Site
 
 class SitesAccessBuilder:
     def __init__(self, sites: list[Site]):

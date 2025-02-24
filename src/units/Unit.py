@@ -1,5 +1,5 @@
-from src.owner.Owner import Owner
-from src.units.UnitType import UnitType
+from owner.Owner import Owner
+from units.UnitType import UnitType
 
 class Unit:
     def __init__(self, pos: list[int], type: UnitType, owner: Owner, health: int):

@@ -1,7 +1,7 @@
 import math
-from src.owner.Owner import Owner
-from src.sites.SiteType import SiteType
-from src.units.UnitType import UnitType
+from owner.Owner import Owner
+from sites.SiteType import SiteType
+from units.UnitType import UnitType
 
 class Site:
     def __init__(self, id: int, pos: list[int], radius: int):
