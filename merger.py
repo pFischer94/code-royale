@@ -14,9 +14,11 @@ paths: list[str] = [
     "sites/SitesAccessBuilder.py",
     "sites/SitesManager.py",
     "units/Unit.py",
+    "units/UnitsAccessBuilder.py",
+    "units/UnitsManager.py",
     
     # MAIN
-    "test.py",
+    "main.py",
 ]
 
 imports: list[str] = []

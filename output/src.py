@@ -16,7 +16,7 @@ class Side(enum.Enum):
 
 class SiteType(enum.Enum):
     EMPTY = -1
-    GOLDMINE = 0
+    MINE = 0
     TOWER = 1
     BARRACKS = 2
     
@@ -78,7 +78,7 @@ class Site:
         self.type = SiteType(type_id)
         self.owner = Owner(owner_id)
         
-        if self.type == SiteType.GOLDMINE:
+        if self.type == SiteType.MINE:
             self.gold_rate = param_1
             if self.gold_rate == self.max_gold_rate:
                 self.was_once_fully_upgraded = True
@@ -93,15 +93,15 @@ class Site:
             self.busy_turns = param_1
             self.produces_unit = UnitType(param_2)
        
-    def is_empty_or_enemy_non_tower(self) -> bool:
-        return self.type == SiteType.EMPTY or (self.owner == Owner.ENEMY and self.type != SiteType.TOWER)
+    # def is_empty_or_enemy_non_tower(self) -> bool:
+    #     return self.type == SiteType.EMPTY or (self.owner == Owner.ENEMY and self.type != SiteType.TOWER)
          
-    def is_inside_tower_range(self, towers: list["Site"]) -> bool:
-        for tower in towers:
-            dist = self.dist_to(tower.pos)
-            if dist < tower.attack_radius:
-                return True
-        return False
+    # def is_inside_tower_range(self, towers: list["Site"]) -> bool:
+    #     for tower in towers:
+    #         dist = self.dist_to(tower.pos)
+    #         if dist < tower.attack_radius:
+    #             return True
+    #     return False
 
     def __repr__(self) -> str:
         shall_be_complete: bool = False
@@ -122,8 +122,19 @@ class SitesAccessBuilder:
     def __init__(self, sites: list[Site]):
         self.sites: list[Site] = sites
     
+    # @property
+    # def friendly(self) -> list[Site]:
+    #     return [site for site in self.sites if site.owner == Owner.FRIENDLY]
+    
+    # @property
+    # def enemy(self) -> list[Site]:
+    #     return [site for site in self.sites if site.owner == Owner.ENEMY]
+    
+    # def get(self) -> list[Site]:
+    #     return self.sites
+    
     def __repr__(self) -> str:
-        return f"SitesAccessBuilder [sites = [{self.sites}]]"
+        return f"SitesAccessBuilder [sites = {self.sites}]"
     
 
 
@@ -140,17 +151,17 @@ class SitesManager:
             id, x, y, radius = [int(j) for j in input().split()]
             self.__sites_dict[id] = Site(id, [x, y], radius)
     
-    def __init__(self, site: Site):
+    def init_for_testing(self, site: Site):
         self.__sites_dict: dict[int, Site] = {site.id: site}
     
-    def update_sites(self) -> None:
+    def update(self) -> None:
         for i in range(len(self.__sites_dict)):
             id, gold, max_gold_rate, type_id, owner_id, param_1, param_2 = [int(j) for j in input().split()]
             self.__sites_dict[id].update(gold, max_gold_rate, type_id, owner_id, param_1, param_2)
     
     @property
     def sites(self) -> SitesAccessBuilder:
-        return SitesAccessBuilder([site for site in self.__sites_dict])
+        return SitesAccessBuilder([site for site in self.__sites_dict.values()])
     
     def __repr__(self):
         return f"SitesManager [__sites_dict = {self.__sites_dict}]"
@@ -167,27 +178,98 @@ class Unit:
         self.health = health
     
     def __repr__(self):
-        return str(self)
+        return (f"Unit [pos = {self.pos}, type = {self.type}, owner = {self.owner}, health = {self.health}]")
 
 
 
-# test.py
+# units/UnitsAccessBuilder.py
 
-print()
+class UnitsAccessBuilder:
+    def __init__(self, units: list[Unit]):
+        self.units: list[Unit] = units
+    
+    # @property
+    # def friendly(self) -> list[Unit]:
+    #     return [unit for unit in self.units if unit.owner == Owner.FRIENDLY]
+    
+    # @property
+    # def enemy(self) -> list[Unit]:
+    #     return [unit for unit in self.units if unit.owner == Owner.ENEMY]
+    
+    # def get(self) -> list[Unit]:
+    #     return self.units
+    
+    def __repr__(self) -> str:
+        return f"UnitsAccessBuilder [units = {self.units}]"
+    
 
-site = Site(1, [2, 3], 4)
-print("site", site)
 
-SM = SitesManager(site)
-print("sm", SM)
+# units/UnitsManager.py
 
-sab: SitesAccessBuilder = SitesAccessBuilder([site])
-print("sab", sab)
-print("sab.sites", sab.sites)
-print("sab.sites[0]", sab.sites[0])
-print("sab.sites[0].pos", sab.sites[0].pos)
+class UnitsManager:
+    def __init__(self):
+        self.__units: list[Unit] = []
+        
+        num_units = int(input())
+        for i in range(num_units):
+            x, y, owner, type, health = [int(j) for j in input().split()]
+            self.__units.append(Unit([x, y], UnitType(type), Owner(owner), health))
+    
+    @classmethod
+    def init_for_testing(self, units: list[Unit]):
+        self.__units: list[Unit] = units
+    
+    @property
+    def units(self) -> UnitsAccessBuilder:
+        return UnitsAccessBuilder(self.__units)
+    
+    def __repr__(self):
+        return f"UnitsManager [units = {self.__units}]"
 
-print()
 
+
+# main.py
+
+SM = SitesManager()
+
+while True:
+    # touched_site: -1 if none
+    gold, touched_site = [int(i) for i in input().split()]
+    
+    SM.update()
+    UM = UnitsManager()
+
+    # To debug: print("Debug messages...", file=sys.stderr, flush=True)
+
+    # First line: A valid queen action
+    # Second line: A set of training instructions
+    print("WAIT")
+    print("TRAIN")
+
+
+
+
+
+while True:
+    # touched_site: -1 if none
+    gold, touched_site = [int(i) for i in input().split()]
+    
+    update_sites(sites)
+    friendly_sites = FriendlySites(sites)
+    # print(friendly_sites, file=sys.stderr, flush=True)
+
+    units = update_units()
+    my_queen, enemy_queen, center_of_towers = get_queens(units, center_of_towers)
+    
+    build_id = find_closest_safely_buildable_site_id(sites, my_queen.pos)
+    build_string = get_build_string(build_id, friendly_sites)
+    print(build_string)
+    
+    train_ids: list[int] = find_n_closest_available_barracks(int(gold / 80), sites, enemy_queen.pos)
+    train_str: str = ""
+    for id in train_ids:
+        train_str += " " + str(id)
+    print(f"TRAIN{train_str}")
+    
 
 

@@ -1,3 +1,26 @@
+from sites.SitesManager import SitesManager
+from units.UnitsManager import UnitsManager
+
+SM = SitesManager.from_input()
+
+while True:
+    # touched_site: -1 if none
+    gold, touched_site = [int(i) for i in input().split()]
+    
+    SM.update()
+    UM = UnitsManager.from_input()
+
+    # To debug: print("Debug messages...", file=sys.stderr, flush=True)
+
+    # First line: A valid queen action
+    # Second line: A set of training instructions
+    print("WAIT")
+    print("TRAIN")
+
+
+
+
+
 while True:
     # touched_site: -1 if none
     gold, touched_site = [int(i) for i in input().split()]

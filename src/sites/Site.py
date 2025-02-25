@@ -37,7 +37,7 @@ class Site:
         self.type = SiteType(type_id)
         self.owner = Owner(owner_id)
         
-        if self.type == SiteType.GOLDMINE:
+        if self.type == SiteType.MINE:
             self.gold_rate = param_1
             if self.gold_rate == self.max_gold_rate:
                 self.was_once_fully_upgraded = True
@@ -52,15 +52,15 @@ class Site:
             self.busy_turns = param_1
             self.produces_unit = UnitType(param_2)
        
-    def is_empty_or_enemy_non_tower(self) -> bool:
-        return self.type == SiteType.EMPTY or (self.owner == Owner.ENEMY and self.type != SiteType.TOWER)
+    # def is_empty_or_enemy_non_tower(self) -> bool:
+    #     return self.type == SiteType.EMPTY or (self.owner == Owner.ENEMY and self.type != SiteType.TOWER)
          
-    def is_inside_tower_range(self, towers: list["Site"]) -> bool:
-        for tower in towers:
-            dist = self.dist_to(tower.pos)
-            if dist < tower.attack_radius:
-                return True
-        return False
+    # def is_inside_tower_range(self, towers: list["Site"]) -> bool:
+    #     for tower in towers:
+    #         dist = self.dist_to(tower.pos)
+    #         if dist < tower.attack_radius:
+    #             return True
+    #     return False
 
     def __repr__(self) -> str:
         shall_be_complete: bool = False

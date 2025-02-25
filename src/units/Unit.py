@@ -9,4 +9,4 @@ class Unit:
         self.health = health
     
     def __repr__(self):
-        return str(self)
+        return (f"Unit [pos = {self.pos}, type = {self.type}, owner = {self.owner}, health = {self.health}]")
