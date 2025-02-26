@@ -19,11 +19,23 @@ print("sab", sab)
 
 print()
 
-unit = Unit([1, 2], UnitType.KNIGHT, Owner.FRIEND, 3)
+unit = Unit([1, 2], UnitType.QUEEN, Owner.FRIEND, 3)
 print("unit", unit)
 UM = UnitsManager([unit])
 print("UM", UM)
 uab: UnitsAccessBuilder = UM.units
 print("uab", uab)
+
+print()
+
+SM.save_start_side(UM.units.my_queen.pos)
+print(SM)
+
+print()
+
+# TODO: implement these methods
+# print(f"BUILD {SM.sites.planned_barracks.get_closest_to(UM.units.my_queen.pos).id}")
+print("WAIT")
+print("TRAIN")
 
 print()

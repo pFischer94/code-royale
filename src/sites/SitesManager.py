@@ -1,12 +1,12 @@
+from params import Params
+from sites.Side import Side
 from sites.SitesAccessBuilder import SitesAccessBuilder
 from sites.Site import Site
-from owner.Owner import Owner
 
 class SitesManager:
-    __CENTER_X: int = 980
-    
     def __init__(self, sites: dict[int, Site]):
         self.__sites_dict: dict[int, Site] = sites
+        self.start_side = Side.UNKNOWN
     
     @classmethod
     def from_input(cls):
@@ -17,14 +17,19 @@ class SitesManager:
             sites_dict[id] = Site(id, [x, y], radius)
         return cls(sites_dict)
     
-    def update(self) -> None:
+    def update_from_input(self) -> None:
         for i in range(len(self.__sites_dict)):
             id, gold, max_gold_rate, type_id, owner_id, param_1, param_2 = [int(j) for j in input().split()]
             self.__sites_dict[id].update(gold, max_gold_rate, type_id, owner_id, param_1, param_2)
     
+    def save_start_side(self, queen_pos: list[int]) -> None:
+        self.start_side = Side.RIGHT if queen_pos[0] >= Params.MIDDLE[0] else Side.LEFT
+        for site in self.__sites_dict.values():
+            site.side = Side.RIGHT if site.pos[0] >= Params.MIDDLE[0] else Side.LEFT
+    
     @property
     def sites(self) -> SitesAccessBuilder:
-        return SitesAccessBuilder([site for site in self.__sites_dict.values()])
+        return SitesAccessBuilder([site for site in self.__sites_dict.values()], self.start_side)
     
     def __repr__(self):
-        return f"SitesManager [__sites_dict = {self.__sites_dict}]"
+        return f"SitesManager [__sites_dict = {self.__sites_dict}, start_side = {self.start_side}]"

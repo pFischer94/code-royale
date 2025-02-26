@@ -1,8 +1,14 @@
+from owner.Owner import Owner
 from units.Unit import Unit
+from units.UnitType import UnitType
 
 class UnitsAccessBuilder:
     def __init__(self, units: list[Unit]):
         self.units: list[Unit] = units
+    
+    @property
+    def my_queen(self) -> Unit:
+        return [unit for unit in self.units if unit.type == UnitType.QUEEN and unit.owner == Owner.FRIEND][0]
     
     # @property
     # def friendly(self) -> list[Unit]:

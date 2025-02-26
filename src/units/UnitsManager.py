@@ -8,7 +8,7 @@ class UnitsManager:
         self.__units: list[Unit] = units
     
     @classmethod
-    def from_input(clf):
+    def from_input(cls):
         units: list[Unit] = []
         num_units = int(input())
         for i in range(num_units):

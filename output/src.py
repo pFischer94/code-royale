@@ -1,6 +1,21 @@
-import enum
 import math
+import enum
+import sys
 
+
+
+# params.py
+
+class Params:
+    WIDTH = 1920
+    HEIGHT = 1000
+    MIDDLE = [WIDTH / 2, HEIGHT / 2]
+    
+    MAX_DIST_TO_MIDDLE = math.dist([0, 0], MIDDLE)
+    MAX_TOWER_DIST = MAX_DIST_TO_MIDDLE / 3
+    MAX_BARRACKS_DIST = MAX_DIST_TO_MIDDLE / 3 * 2
+    
+    TOWER_TARGET_RADIUS = 500
 
 
 # sites/Side.py
@@ -44,6 +59,7 @@ class Owner(enum.Enum):
 
 # sites/Site.py
 
+
 class Site:
     def __init__(self, id: int, pos: list[int], radius: int):
         # init
@@ -68,6 +84,7 @@ class Site:
         
         # custom
         self.was_once_fully_upgraded: bool = False
+        self.side = Side.UNKNOWN
         
     def dist_to(self, pos: list[int]) -> float:
         return math.dist(self.pos, pos)
@@ -86,15 +103,15 @@ class Site:
             self.max_gold_rate = 0
             self.hp = param_1
             self.attack_radius = param_2
-            if self.attack_radius > 500:
+            if self.attack_radius > Params.TOWER_TARGET_RADIUS:
                 self.was_once_fully_upgraded = True
         elif self.type == SiteType.BARRACKS:
             self.max_gold_rate = 0
             self.busy_turns = param_1
             self.produces_unit = UnitType(param_2)
        
-    # def is_empty_or_enemy_non_tower(self) -> bool:
-    #     return self.type == SiteType.EMPTY or (self.owner == Owner.ENEMY and self.type != SiteType.TOWER)
+    def is_empty_or_enemy_non_tower(self) -> bool:
+        return self.type == SiteType.EMPTY or (self.owner == Owner.ENEMY and self.type != SiteType.TOWER)
          
     # def is_inside_tower_range(self, towers: list["Site"]) -> bool:
     #     for tower in towers:
@@ -119,8 +136,16 @@ class Site:
 # sites/SitesAccessBuilder.py
 
 class SitesAccessBuilder:
-    def __init__(self, sites: list[Site]):
+    def __init__(self, sites: list[Site], start_side: Side):
         self.sites: list[Site] = sites
+        self.start_side = start_side
+        
+    def __planned_barracks(self):
+        self.sites = [site for site in self.sites 
+                if site.side == self.start_side 
+                and Params.MAX_TOWER_DIST < site.dist_to(Params.MIDDLE) <= Params.MAX_BARRACKS_DIST
+                and site.is_empty_or_enemy_non_tower()]
+        return self
     
     # @property
     # def friendly(self) -> list[Site]:
@@ -133,6 +158,16 @@ class SitesAccessBuilder:
     # def get(self) -> list[Site]:
     #     return self.sites
     
+    def __get_closest_to(self, pos):
+        if sites := sorted(self.sites, key=lambda site: site.dist_to(pos)):
+            return sites[0]
+        else: return None
+
+    def next_barracks_to_build(self, pos):
+        if site := self.__planned_barracks().__get_closest_to(pos):
+            return site
+        else: return None
+    
     def __repr__(self) -> str:
         return f"SitesAccessBuilder [sites = {self.sites}]"
     
@@ -141,30 +176,35 @@ class SitesAccessBuilder:
 # sites/SitesManager.py
 
 class SitesManager:
-    __CENTER_X: int = 980
+    def __init__(self, sites: dict[int, Site]):
+        self.__sites_dict: dict[int, Site] = sites
+        self.start_side = Side.UNKNOWN
     
-    def __init__(self):
-        self.__sites_dict: dict[int, Site] = {}
-        
+    @classmethod
+    def from_input(cls):
+        sites_dict: dict[int, Site] = {}
         num_sites = int(input())
         for i in range(num_sites):
             id, x, y, radius = [int(j) for j in input().split()]
-            self.__sites_dict[id] = Site(id, [x, y], radius)
+            sites_dict[id] = Site(id, [x, y], radius)
+        return cls(sites_dict)
     
-    def init_for_testing(self, site: Site):
-        self.__sites_dict: dict[int, Site] = {site.id: site}
-    
-    def update(self) -> None:
+    def update_from_input(self) -> None:
         for i in range(len(self.__sites_dict)):
             id, gold, max_gold_rate, type_id, owner_id, param_1, param_2 = [int(j) for j in input().split()]
             self.__sites_dict[id].update(gold, max_gold_rate, type_id, owner_id, param_1, param_2)
     
+    def save_start_side(self, queen_pos: list[int]) -> None:
+        self.start_side = Side.RIGHT if queen_pos[0] >= Params.MIDDLE[0] else Side.LEFT
+        for site in self.__sites_dict.values():
+            site.side = Side.RIGHT if site.pos[0] >= Params.MIDDLE[0] else Side.LEFT
+    
     @property
     def sites(self) -> SitesAccessBuilder:
-        return SitesAccessBuilder([site for site in self.__sites_dict.values()])
+        return SitesAccessBuilder([site for site in self.__sites_dict.values()], self.start_side)
     
     def __repr__(self):
-        return f"SitesManager [__sites_dict = {self.__sites_dict}]"
+        return f"SitesManager [__sites_dict = {self.__sites_dict}, start_side = {self.start_side}]"
 
 
 
@@ -188,6 +228,10 @@ class UnitsAccessBuilder:
     def __init__(self, units: list[Unit]):
         self.units: list[Unit] = units
     
+    @property
+    def my_queen(self) -> Unit:
+        return [unit for unit in self.units if unit.type == UnitType.QUEEN and unit.owner == Owner.FRIEND][0]
+    
     # @property
     # def friendly(self) -> list[Unit]:
     #     return [unit for unit in self.units if unit.owner == Owner.FRIENDLY]
@@ -207,17 +251,17 @@ class UnitsAccessBuilder:
 # units/UnitsManager.py
 
 class UnitsManager:
-    def __init__(self):
-        self.__units: list[Unit] = []
-        
+    def __init__(self, units: list[Unit]):
+        self.__units: list[Unit] = units
+    
+    @classmethod
+    def from_input(cls):
+        units: list[Unit] = []
         num_units = int(input())
         for i in range(num_units):
             x, y, owner, type, health = [int(j) for j in input().split()]
-            self.__units.append(Unit([x, y], UnitType(type), Owner(owner), health))
-    
-    @classmethod
-    def init_for_testing(self, units: list[Unit]):
-        self.__units: list[Unit] = units
+            units.append(Unit([x, y], UnitType(type), Owner(owner), health))
+        return cls(units)
     
     @property
     def units(self) -> UnitsAccessBuilder:
@@ -230,20 +274,46 @@ class UnitsManager:
 
 # main.py
 
-SM = SitesManager()
+
+SM = SitesManager.from_input()
+input()
+SM.update_from_input()
+um = UnitsManager.from_input()
+
+SM.save_start_side(um.units.my_queen.pos)
+
+# TODO: implement these methods
+print(f"BUILD {SM.sites.next_barracks_to_build(um.units.my_queen.pos).id} BARRACKS-KNIGHT")
+print("TRAIN")
 
 while True:
     # touched_site: -1 if none
     gold, touched_site = [int(i) for i in input().split()]
     
-    SM.update()
-    UM = UnitsManager()
+    SM.update_from_input()
+    um = UnitsManager.from_input()
+    
+    if SM.start_side == Side.UNKNOWN:
+        SM.start_side = Side.RIGHT if um.units.my_queen.pos[0] >= Params.MIDDLE[0] else Side.LEFT
+
+    # find BUILD action
+        # save 3 
+        # one knights barrack, TRAIN once
+        # 3 mines, dont upgrade
+        # 4 towers in middle, dont upgrade
+        
+        # save for huge wave
+        
+    
+    # find TRAIN action
 
     # To debug: print("Debug messages...", file=sys.stderr, flush=True)
-
     # First line: A valid queen action
     # Second line: A set of training instructions
-    print("WAIT")
+    if next_barracks := SM.sites.next_barracks_to_build(um.units.my_queen.pos):
+        print(f"BUILD {next_barracks.id} BARRACKS-KNIGHT")
+    else:
+        print("WAIT")
     print("TRAIN")
 
 

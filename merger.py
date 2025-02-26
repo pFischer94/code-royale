@@ -3,6 +3,9 @@ from sys import exception
 
 project: str = "src"
 paths: list[str] = [
+    # PARAMS
+    "params.py",
+    
     # ENUMS
     "sites/Side.py",
     "sites/SiteType.py",

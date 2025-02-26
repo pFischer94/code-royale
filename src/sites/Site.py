@@ -1,5 +1,8 @@
 import math
+
 from owner.Owner import Owner
+from params import Params
+from sites.Side import Side
 from sites.SiteType import SiteType
 from units.UnitType import UnitType
 
@@ -27,6 +30,7 @@ class Site:
         
         # custom
         self.was_once_fully_upgraded: bool = False
+        self.side = Side.UNKNOWN
         
     def dist_to(self, pos: list[int]) -> float:
         return math.dist(self.pos, pos)
@@ -45,15 +49,15 @@ class Site:
             self.max_gold_rate = 0
             self.hp = param_1
             self.attack_radius = param_2
-            if self.attack_radius > 500:
+            if self.attack_radius > Params.TOWER_TARGET_RADIUS:
                 self.was_once_fully_upgraded = True
         elif self.type == SiteType.BARRACKS:
             self.max_gold_rate = 0
             self.busy_turns = param_1
             self.produces_unit = UnitType(param_2)
        
-    # def is_empty_or_enemy_non_tower(self) -> bool:
-    #     return self.type == SiteType.EMPTY or (self.owner == Owner.ENEMY and self.type != SiteType.TOWER)
+    def is_empty_or_enemy_non_tower(self) -> bool:
+        return self.type == SiteType.EMPTY or (self.owner == Owner.ENEMY and self.type != SiteType.TOWER)
          
     # def is_inside_tower_range(self, towers: list["Site"]) -> bool:
     #     for tower in towers:
