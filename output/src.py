@@ -9,13 +9,19 @@ import sys
 class Params:
     WIDTH = 1920
     HEIGHT = 1000
-    CENTER = [WIDTH / 2, HEIGHT / 2]
+    CENTER = [int(WIDTH / 2), int(HEIGHT / 2)]
     
-    MAX_DIST_TO_MIDDLE = math.dist([0, 0], CENTER)
-    MAX_TOWER_DIST = MAX_DIST_TO_MIDDLE * 0.3
-    MAX_BARRACKS_DIST = MAX_DIST_TO_MIDDLE * 0.5
+    # MAX_DIST_TO_MIDDLE = math.dist([0, 0], CENTER)
+    # MAX_TOWER_DIST = MAX_DIST_TO_MIDDLE * 0.4
+    # MAX_BARRACKS_DIST = MAX_DIST_TO_MIDDLE * 0.6
     
-    TOWER_TARGET_RADIUS = 500
+    # if MAX_TOWER_DIST >= MAX_BARRACKS_DIST:
+    #     raise Exception("Invalid Params") 
+    
+    TOWER_SHARE = 0.3
+    BARRACKS_AMOUNT = 3
+    
+    TOWER_TARGET_RADIUS = 350
     
     SAVING_LIMIT = 200
 
@@ -97,7 +103,7 @@ class Site:
         
         # custom
         self.was_once_fully_upgraded: bool = False
-        self.side = Side.UNKNOWN
+        self.planned_type = SiteType.EMPTY
         
     def dist_to(self, pos: list[int]) -> float:
         return math.dist(self.pos, pos)
@@ -123,11 +129,19 @@ class Site:
             self.busy_turns = param_1
             self.produces_unit = UnitType.from_type_number(param_2)
     
+    def is_in_roi(self, start_side: Side) -> bool:
+        return (self.pos[0] < Params.CENTER[0]) == (start_side == Side.LEFT)
+    
     def is_empty_or_enemy_non_tower(self) -> bool:
         return self.type == SiteType.EMPTY or (self.owner == Owner.ENEMY and self.type != SiteType.TOWER)
-        
-    def is_buildable(self, start_side):
-        return self.side == start_side and self.is_empty_or_enemy_non_tower()
+    
+    def needs_upgrade(self) -> bool:
+        if self.type == SiteType.MINE:
+            return self.gold_rate < self.max_gold_rate
+        elif self.type == SiteType.TOWER:
+            return self.attack_radius < Params.TOWER_TARGET_RADIUS
+        else:
+            return False
     
     # def is_inside_tower_range(self, towers: list["Site"]) -> bool:
     #     for tower in towers:
@@ -145,7 +159,7 @@ class Site:
                     f"attack_radius = {self.attack_radius}, produces_unit = {self.produces_unit}, "
                     f"was_once_fully_upgraded = {self.was_once_fully_upgraded}]")
         else:
-            return (f"Site [id = {self.id}, pos = {self.pos}]")
+            return (f"Site [id = {self.id:2d}, pos = {str(self.pos):12s}, planned: {str(self.planned_type.name):8s}]")
     
 
 
@@ -171,22 +185,36 @@ class SitesAccessBuilder:
         return self
     
     @property
+    def mines(self):
+        self.sites = [site for site in self.sites if site.type == SiteType.MINE]
+        return self
+    
+    @property
+    def towers(self):
+        self.sites = [site for site in self.sites if site.type == SiteType.TOWER]
+        return self
+    
+    @property
     def idle(self):
         self.sites = [site for site in self.sites if site.busy_turns == 0]
         return self
     
+    @property
+    def wnofu(self):
+        self.sites = [site for site in self.sites if not site.was_once_fully_upgraded]
+        return self
+    
+    @property
+    def needs_upgrade(self):
+        self.sites = [site for site in self.sites if site.needs_upgrade()]
+        return self
+    
     def planned(self, type: SiteType):
-        self.sites = [site for site in self.sites if site.is_buildable(self.start_side)]
-        match type:
-            case SiteType.TOWER:
-                self.sites = [site for site in self.sites if site.dist_to(Params.CENTER) <= Params.MAX_TOWER_DIST]
-            case SiteType.BARRACKS:
-                self.sites = [site for site in self.sites
-                              if Params.MAX_TOWER_DIST < site.dist_to(Params.CENTER) <= Params.MAX_BARRACKS_DIST]
-            case SiteType.MINE:
-                self.sites = [site for site in self.sites if Params.MAX_BARRACKS_DIST < site.dist_to(Params.CENTER)]
-            case _:
-                raise Exception("Invalid type")
+        self.sites = [site for site in self.sites if site.planned_type == type and site.is_empty_or_enemy_non_tower()]
+        return self
+    
+    def produces(self, unit_type):
+        self.sites = [site for site in self.sites if site.produces_unit == unit_type]
         return self
     
     def get(self) -> list[Site]:
@@ -196,6 +224,9 @@ class SitesAccessBuilder:
         if sites := sorted(self.sites, key=lambda site: site.dist_to(pos)):
             return sites[0]
         else: return None
+    
+    def len(self):
+        return len(self.sites)
 
     def __repr__(self) -> str:
         return f"SitesAccessBuilder [sites = {self.sites}]"
@@ -203,6 +234,7 @@ class SitesAccessBuilder:
 
 
 # sites/SitesManager.py
+
 
 class SitesManager:
     def __init__(self, sites: dict[int, Site]):
@@ -228,6 +260,21 @@ class SitesManager:
         for site in self.__sites_dict.values():
             site.side = Side.RIGHT if site.pos[0] >= Params.CENTER[0] else Side.LEFT
     
+    def plan_sites(self) -> None:
+        sites_in_roi = [site for site in self.__sites_dict.values() if site.is_in_roi(self.start_side)]
+        sites_in_roi.sort(key=lambda site: site.pos[0], reverse=self.start_side == Side.LEFT)
+        print(len(sites_in_roi), file=sys.stderr, flush=True)
+        tower_amount = Params.TOWER_SHARE * len(sites_in_roi)
+        for i in range(len(sites_in_roi)):
+            site = sites_in_roi[i]
+            if i < tower_amount:
+                site.planned_type = SiteType.TOWER
+            elif i < tower_amount + Params.BARRACKS_AMOUNT:
+                site.planned_type = SiteType.BARRACKS
+            else:
+                site.planned_type = SiteType.MINE
+            print(site, file=sys.stderr, flush=True)
+    
     @property
     def sites(self) -> SitesAccessBuilder:
         """Generates new SitesAccessBuilder with all sites and start_side."""
@@ -235,7 +282,10 @@ class SitesManager:
         return SitesAccessBuilder([site for site in self.__sites_dict.values()], self.start_side)
     
     def __repr__(self):
-        return f"SitesManager [__sites_dict = {self.__sites_dict}, start_side = {self.start_side}]"
+        res = f"SitesManager [start_side = {self.start_side}] sites:\n"
+        for site in self.__sites_dict.values():
+            res += f"{site}\n"
+        return res
 
 
 
@@ -313,10 +363,11 @@ class GameManager:
         self.SM.update_from_input()
         self.um = UnitsManager.from_input()
         self.SM.save_start_side(self.um.units.my_queen.pos)
+        self.SM.plan_sites()
         
         self.gold = 0
         self.touched_site = -1
-        self.units_trained = 0
+        self.units_trained = False
 
         self.build()
         self.train()
@@ -326,27 +377,49 @@ class GameManager:
         self.SM.update_from_input()
         self.um = UnitsManager.from_input()
     
+    # 3 mines, dont upgrade
+    # 4 towers in middle, dont upgrade
     def build(self):
-        if next_barracks := self.SM.sites.planned(SiteType.BARRACKS).get_closest_to(self.um.units.my_queen.pos):
+        next_barracks = self.SM.sites.planned(SiteType.BARRACKS).get_closest_to(self.um.units.my_queen.pos)
+        next_tower = self.SM.sites.planned(SiteType.TOWER).get_closest_to(self.um.units.my_queen.pos)
+        next_mine = self.SM.sites.planned(SiteType.MINE).get_closest_to(self.um.units.my_queen.pos)
+        
+        if not self.SM.sites.my.mines.len() and next_mine:
+            print(f"BUILD {next_mine.id} MINE")
+        elif upgrade := self.SM.sites.my.mines.needs_upgrade.get_closest_to(self.um.units.my_queen.pos):
+            print(f"BUILD {upgrade.id} MINE")
+        # elif not self.SM.sites.my.produces(UnitType.ARCHER).len() and next_barracks:
+        #     print(f"BUILD {next_barracks.id} BARRACKS-ARCHER")
+        elif not self.SM.sites.my.barracks.len() and next_barracks:
             print(f"BUILD {next_barracks.id} BARRACKS-KNIGHT")
+        elif upgrade := self.SM.sites.my.towers.wnofu.get_closest_to(self.um.units.my_queen.pos):
+            print(f"BUILD {upgrade.id} TOWER")
+        elif next_tower:
+            print(f"BUILD {next_tower.id} TOWER")
+        elif next_mine:
+            print(f"BUILD {next_mine.id} MINE")
         else:
             print("WAIT")
             
     def train(self):
-        if self.units_trained == 0 and (barracks := self.SM.sites.my.barracks.idle.get_closest_to(Params.CENTER)):
-                print(f"TRAIN {barracks.id}")
+        if not self.units_trained and (barracks := self.SM.sites.my.barracks.idle.get_closest_to(Params.CENTER)):
+            self.units_trained = True
+            print(f"TRAIN {barracks.id}")
         elif self.gold >= Params.SAVING_LIMIT:
-            barracks = self.SM.sites.my.barracks.get()
-            barracks.sort(key=lambda barracks: barracks.dist_to(Params.CENTER))
-            ids = []
-            for barrack in barracks:
-                if barrack.busy_turns == 0 and self.gold >= UnitType.KNIGHT.cost:
-                    ids.append(barrack.id)
-                    self.gold -= UnitType.KNIGHT.cost
-            # TODO: fix error "TRAIN "
-            print(f"TRAIN {', '.join(ids)}")
+            self.train_big_wave()
         else:
             print("TRAIN")
+    
+    def train_big_wave(self):
+        barracks = self.SM.sites.my.barracks.get()
+        barracks.sort(key=lambda barracks: barracks.dist_to(Params.CENTER))
+        ids = []
+        for barrack in barracks:
+            if barrack.busy_turns == 0 and self.gold >= barrack.produces_unit.cost:
+                self.gold -= barrack.produces_unit.cost
+                ids.append(barrack.id)
+        id_str = " " + ', '.join(str(ids))
+        print(f"TRAIN{id_str}")
     
     def __repr__(self) -> str:
         return (f"GameManager []")
@@ -356,7 +429,6 @@ class GameManager:
 # main.py
 
 
-# python3 merger.py; Get-Content output/src.py | Set-Clipboard
 
 GM = GameManager()
 
@@ -364,20 +436,9 @@ while True:
     GM.update()
     GM.build()
     GM.train()
-    
-    # find BUILD action
-        # save 3 
-        # one knights barrack, TRAIN once
-        # 3 mines, dont upgrade
-        # 4 towers in middle, dont upgrade
         
-        # save for huge wave
-    
-    # find TRAIN action
-
-    # To debug: print("Debug messages...", file=sys.stderr, flush=True)
-    # First line: A valid queen action
-    # Second line: A set of training instructions
+# python3 merger.py; Get-Content output/src.py | Set-Clipboard
+# To debug: print("Debug messages...", file=sys.stderr, flush=True)
 
 
 

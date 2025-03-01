@@ -1,4 +1,5 @@
 import math
+import sys
 
 from owner.Owner import Owner
 from params import Params
@@ -30,7 +31,7 @@ class Site:
         
         # custom
         self.was_once_fully_upgraded: bool = False
-        self.side = Side.UNKNOWN
+        self.planned_type = SiteType.EMPTY
         
     def dist_to(self, pos: list[int]) -> float:
         return math.dist(self.pos, pos)
@@ -56,11 +57,19 @@ class Site:
             self.busy_turns = param_1
             self.produces_unit = UnitType.from_type_number(param_2)
     
+    def is_in_roi(self, start_side: Side) -> bool:
+        return (self.pos[0] < Params.CENTER[0]) == (start_side == Side.LEFT)
+    
     def is_empty_or_enemy_non_tower(self) -> bool:
         return self.type == SiteType.EMPTY or (self.owner == Owner.ENEMY and self.type != SiteType.TOWER)
-        
-    def is_buildable(self, start_side):
-        return self.side == start_side and self.is_empty_or_enemy_non_tower()
+    
+    def needs_upgrade(self) -> bool:
+        if self.type == SiteType.MINE:
+            return self.gold_rate < self.max_gold_rate
+        elif self.type == SiteType.TOWER:
+            return self.attack_radius < Params.TOWER_TARGET_RADIUS
+        else:
+            return False
     
     # def is_inside_tower_range(self, towers: list["Site"]) -> bool:
     #     for tower in towers:
@@ -78,5 +87,5 @@ class Site:
                     f"attack_radius = {self.attack_radius}, produces_unit = {self.produces_unit}, "
                     f"was_once_fully_upgraded = {self.was_once_fully_upgraded}]")
         else:
-            return (f"Site [id = {self.id}, pos = {self.pos}]")
+            return (f"Site [id = {self.id:2d}, pos = {str(self.pos):12s}, planned: {str(self.planned_type.name):8s}]")
     

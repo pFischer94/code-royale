@@ -24,22 +24,36 @@ class SitesAccessBuilder:
         return self
     
     @property
+    def mines(self):
+        self.sites = [site for site in self.sites if site.type == SiteType.MINE]
+        return self
+    
+    @property
+    def towers(self):
+        self.sites = [site for site in self.sites if site.type == SiteType.TOWER]
+        return self
+    
+    @property
     def idle(self):
         self.sites = [site for site in self.sites if site.busy_turns == 0]
         return self
     
+    @property
+    def wnofu(self):
+        self.sites = [site for site in self.sites if not site.was_once_fully_upgraded]
+        return self
+    
+    @property
+    def needs_upgrade(self):
+        self.sites = [site for site in self.sites if site.needs_upgrade()]
+        return self
+    
     def planned(self, type: SiteType):
-        self.sites = [site for site in self.sites if site.is_buildable(self.start_side)]
-        match type:
-            case SiteType.TOWER:
-                self.sites = [site for site in self.sites if site.dist_to(Params.CENTER) <= Params.MAX_TOWER_DIST]
-            case SiteType.BARRACKS:
-                self.sites = [site for site in self.sites
-                              if Params.MAX_TOWER_DIST < site.dist_to(Params.CENTER) <= Params.MAX_BARRACKS_DIST]
-            case SiteType.MINE:
-                self.sites = [site for site in self.sites if Params.MAX_BARRACKS_DIST < site.dist_to(Params.CENTER)]
-            case _:
-                raise Exception("Invalid type")
+        self.sites = [site for site in self.sites if site.planned_type == type and site.is_empty_or_enemy_non_tower()]
+        return self
+    
+    def produces(self, unit_type):
+        self.sites = [site for site in self.sites if site.produces_unit == unit_type]
         return self
     
     def get(self) -> list[Site]:
@@ -49,6 +63,9 @@ class SitesAccessBuilder:
         if sites := sorted(self.sites, key=lambda site: site.dist_to(pos)):
             return sites[0]
         else: return None
+    
+    def len(self):
+        return len(self.sites)
 
     def __repr__(self) -> str:
         return f"SitesAccessBuilder [sites = {self.sites}]"

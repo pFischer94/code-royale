@@ -33,8 +33,6 @@ print(SM)
 
 print()
 
-# TODO: implement these methods
-# print(f"BUILD {SM.sites.planned_barracks.get_closest_to(UM.units.my_queen.pos).id}")
 print("WAIT")
 print("TRAIN")
 
