@@ -40,8 +40,8 @@ class SitesAccessBuilder:
         return self
     
     @property
-    def wnofu(self):
-        self.sites = [site for site in self.sites if not site.was_once_fully_upgraded]
+    def wnfu(self):
+        self.sites = [site for site in self.sites if not site.was_fully_upgraded]
         return self
     
     @property
@@ -54,15 +54,20 @@ class SitesAccessBuilder:
         self.sites = [site for site in self.sites if site.gold > Params.MIN_GOLD_FOR_MINE]
         return self
     
+    @property
+    def buildable(self):
+        self.sites = [site for site in self.sites if site.is_buildable()]
+        return self
+    
     def planned(self, type: SiteType):
-        self.sites = [site for site in self.sites if site.planned_type == type and site.is_empty_or_enemy_non_tower()]
+        self.sites = [site for site in self.sites if site.planned_type == type and site.is_buildable()]
         return self
     
     def produces(self, unit_type):
         self.sites = [site for site in self.sites if site.produces_unit == unit_type]
         return self
     
-    def safe(self, enemies: list[Site]):
+    def safe(self, enemies: list):
         self.sites = [site for site in self.sites if not site.is_too_close_to(enemies)]
         return self
     

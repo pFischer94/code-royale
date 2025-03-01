@@ -31,7 +31,7 @@ class Site:
         self.produces_unit = UnitType.NONE
         
         # custom
-        self.was_once_fully_upgraded: bool = False
+        self.was_fully_upgraded: bool = False
         self.planned_type = SiteType.EMPTY
         
     def dist_to(self, pos: list[int]) -> float:
@@ -46,13 +46,15 @@ class Site:
         if self.type == SiteType.MINE:
             self.gold_rate = param_1
             if self.gold_rate == self.max_gold_rate:
-                self.was_once_fully_upgraded = True
+                self.was_fully_upgraded = True
         elif self.type == SiteType.TOWER:
             self.max_gold_rate = 0
             self.hp = param_1
             self.attack_radius = param_2
             if self.attack_radius > Params.TOWER_TARGET_RADIUS:
-                self.was_once_fully_upgraded = True
+                self.was_fully_upgraded = True
+            elif self.attack_radius < Params.TOWER_MIN_RADIUS:
+                self.was_fully_upgraded = False
         elif self.type == SiteType.BARRACKS:
             self.max_gold_rate = 0
             self.busy_turns = param_1
@@ -61,7 +63,7 @@ class Site:
     def is_in_roi(self, start_side: Side) -> bool:
         return (self.pos[0] < Params.CENTER[0]) == (start_side == Side.LEFT)
     
-    def is_empty_or_enemy_non_tower(self) -> bool:
+    def is_buildable(self) -> bool:
         return self.type == SiteType.EMPTY or (self.owner == Owner.ENEMY and self.type != SiteType.TOWER)
     
     def needs_upgrade(self) -> bool:
@@ -96,7 +98,7 @@ class Site:
                     f"max_gold_rate = {self.max_gold_rate}, type = {self.type}, owner = {self.owner}, "
                     f"gold_rate = {self.gold_rate}, hp = {self.hp}, busy_turns = {self.busy_turns}, "
                     f"attack_radius = {self.attack_radius}, produces_unit = {self.produces_unit}, "
-                    f"was_once_fully_upgraded = {self.was_once_fully_upgraded}]")
+                    f"was_once_fully_upgraded = {self.was_fully_upgraded}]")
         else:
-            return (f"Site [id = {self.id:2d}, pos = {str(self.pos):12s}, planned = {str(self.planned_type.name):8s}]")
+            return (f"Site [id = {self.id:2d}, pos = {str(self.pos):12s}, att_radius = {self.attack_radius:3d}, planned = {str(self.planned_type.name):8s}]")
     

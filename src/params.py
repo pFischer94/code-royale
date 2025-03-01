@@ -12,14 +12,23 @@ class Params:
     # if MAX_TOWER_DIST >= MAX_BARRACKS_DIST:
     #     raise Exception("Invalid Params") 
     
-    TOWER_SHARE = 0.3
-    BARRACKS_AMOUNT = 3
-    
     TOWER_TARGET_RADIUS = 500
-    
+    # TODO: refine
+    TOWER_MIN_RADIUS = 70
+
     SAVING_LIMIT = 200
     
     MIN_GOLD_FOR_MINE = 70
     
     ENEMY_UNIT_SAFETY_DIST = 300
+    
+    # PlanStrategy
+    TOWER_SHARE = 0.3
+    BARRACKS_AMOUNT = 3
+    
+    # ReactStrategy
+    TARGET_MINES = 3
+    TARGET_TOWERS = 4
+    TARGET_KNIGHTS_BARRACKS = 2
+    TARGET_GIANTS_BARRACKS = 1
     

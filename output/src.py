@@ -18,16 +18,25 @@ class Params:
     # if MAX_TOWER_DIST >= MAX_BARRACKS_DIST:
     #     raise Exception("Invalid Params") 
     
-    TOWER_SHARE = 0.3
-    BARRACKS_AMOUNT = 3
-    
     TOWER_TARGET_RADIUS = 500
-    
+    # TODO: refine
+    TOWER_MIN_RADIUS = 70
+
     SAVING_LIMIT = 200
     
     MIN_GOLD_FOR_MINE = 70
     
     ENEMY_UNIT_SAFETY_DIST = 300
+    
+    # PlanStrategy
+    TOWER_SHARE = 0.3
+    BARRACKS_AMOUNT = 3
+    
+    # ReactStrategy
+    TARGET_MINES = 3
+    TARGET_TOWERS = 4
+    TARGET_KNIGHTS_BARRACKS = 2
+    TARGET_GIANTS_BARRACKS = 1
     
 
 
@@ -108,7 +117,7 @@ class Site:
         self.produces_unit = UnitType.NONE
         
         # custom
-        self.was_once_fully_upgraded: bool = False
+        self.was_fully_upgraded: bool = False
         self.planned_type = SiteType.EMPTY
         
     def dist_to(self, pos: list[int]) -> float:
@@ -123,13 +132,15 @@ class Site:
         if self.type == SiteType.MINE:
             self.gold_rate = param_1
             if self.gold_rate == self.max_gold_rate:
-                self.was_once_fully_upgraded = True
+                self.was_fully_upgraded = True
         elif self.type == SiteType.TOWER:
             self.max_gold_rate = 0
             self.hp = param_1
             self.attack_radius = param_2
             if self.attack_radius > Params.TOWER_TARGET_RADIUS:
-                self.was_once_fully_upgraded = True
+                self.was_fully_upgraded = True
+            elif self.attack_radius < Params.TOWER_MIN_RADIUS:
+                self.was_fully_upgraded = False
         elif self.type == SiteType.BARRACKS:
             self.max_gold_rate = 0
             self.busy_turns = param_1
@@ -138,7 +149,7 @@ class Site:
     def is_in_roi(self, start_side: Side) -> bool:
         return (self.pos[0] < Params.CENTER[0]) == (start_side == Side.LEFT)
     
-    def is_empty_or_enemy_non_tower(self) -> bool:
+    def is_buildable(self) -> bool:
         return self.type == SiteType.EMPTY or (self.owner == Owner.ENEMY and self.type != SiteType.TOWER)
     
     def needs_upgrade(self) -> bool:
@@ -173,9 +184,9 @@ class Site:
                     f"max_gold_rate = {self.max_gold_rate}, type = {self.type}, owner = {self.owner}, "
                     f"gold_rate = {self.gold_rate}, hp = {self.hp}, busy_turns = {self.busy_turns}, "
                     f"attack_radius = {self.attack_radius}, produces_unit = {self.produces_unit}, "
-                    f"was_once_fully_upgraded = {self.was_once_fully_upgraded}]")
+                    f"was_once_fully_upgraded = {self.was_fully_upgraded}]")
         else:
-            return (f"Site [id = {self.id:2d}, pos = {str(self.pos):12s}, planned = {str(self.planned_type.name):8s}]")
+            return (f"Site [id = {self.id:2d}, pos = {str(self.pos):12s}, att_radius = {self.attack_radius:3d}, planned = {str(self.planned_type.name):8s}]")
     
 
 
@@ -217,8 +228,8 @@ class SitesAccessBuilder:
         return self
     
     @property
-    def wnofu(self):
-        self.sites = [site for site in self.sites if not site.was_once_fully_upgraded]
+    def wnfu(self):
+        self.sites = [site for site in self.sites if not site.was_fully_upgraded]
         return self
     
     @property
@@ -231,15 +242,20 @@ class SitesAccessBuilder:
         self.sites = [site for site in self.sites if site.gold > Params.MIN_GOLD_FOR_MINE]
         return self
     
+    @property
+    def buildable(self):
+        self.sites = [site for site in self.sites if site.is_buildable()]
+        return self
+    
     def planned(self, type: SiteType):
-        self.sites = [site for site in self.sites if site.planned_type == type and site.is_empty_or_enemy_non_tower()]
+        self.sites = [site for site in self.sites if site.planned_type == type and site.is_buildable()]
         return self
     
     def produces(self, unit_type):
         self.sites = [site for site in self.sites if site.produces_unit == unit_type]
         return self
     
-    def safe(self, enemies: list[Site]):
+    def safe(self, enemies: list):
         self.sites = [site for site in self.sites if not site.is_too_close_to(enemies)]
         return self
     
@@ -287,9 +303,11 @@ class SitesManager:
         # for site in self.__sites_dict.values():
         #     site.side = Side.RIGHT if site.pos[0] >= Params.CENTER[0] else Side.LEFT
     
+    # for PlanStrategy, maybe TODO: move there
     def plan_sites(self) -> None:
         sites_in_roi = [site for site in self.__sites_dict.values() if site.is_in_roi(self.start_side)]
         sites_in_roi.sort(key=lambda site: site.pos[0], reverse=self.start_side == Side.LEFT)
+        # TODO: plan towers close to center
         print(len(sites_in_roi), file=sys.stderr, flush=True)
         tower_amount = Params.TOWER_SHARE * len(sites_in_roi)
         for i in range(len(sites_in_roi)):
@@ -409,13 +427,45 @@ class GameManager:
         self.SM.update_from_input()
         self.um = UnitsManager.from_input()
     
-    # 3 mines, dont upgrade
-    # 4 towers in middle, dont upgrade
+    def build(self):
+        raise NotImplementedError("Please Implement this method")
+            
+    def train(self):
+        raise NotImplementedError("Please Implement this method")
+    
+    def train_big_wave(self):
+        barracks = self.SM.sites.my.barracks.get()
+        barracks.sort(key=lambda barracks: barracks.dist_to(Params.CENTER))
+        ids = []
+        for barrack in barracks:
+            if barrack.busy_turns <= 0 and self.gold >= barrack.produces_unit.cost:
+                self.gold -= barrack.produces_unit.cost
+                ids.append(str(barrack.id))
+        if ids:
+            id_str = ""
+            for id in ids:
+                id_str += " " + id
+            print(f"argh ids: {ids}", file=sys.stderr, flush=True)
+            print(f"TRAIN{id_str}")
+        else:
+            print("TRAIN")
+    
+    def __repr__(self) -> str:
+        return (f"GameManager []")
+    
+
+
+# game/PlanStrategy.py
+
+
+class PlanStrategy(GameManager):
     def build(self):
         next_barracks = self.SM.sites.planned(SiteType.BARRACKS).get_closest_to(self.um.units.my_queen.pos)
         enemy_towers = self.SM.sites.enemy.towers.get()
+        # TODO: build towers closer to center
         next_tower = self.SM.sites.planned(SiteType.TOWER).safe(enemy_towers).get_closest_to(self.um.units.my_queen.pos)
         enemy_units = self.um.units.enemy.get()
+        # TODO: if not safe build tower instead
         next_mine = self.SM.sites.planned(SiteType.MINE).gold_left.safe(enemy_units).get_closest_to(self.um.units.my_queen.pos)
         
         if not self.SM.sites.my.mines.len() and next_mine:
@@ -426,7 +476,7 @@ class GameManager:
         #     print(f"BUILD {next_barracks.id} BARRACKS-ARCHER")
         elif not self.SM.sites.my.barracks.len() and next_barracks:
             print(f"BUILD {next_barracks.id} BARRACKS-KNIGHT")
-        elif upgrade := self.SM.sites.my.towers.wnofu.get_closest_to(self.um.units.my_queen.pos):
+        elif upgrade := self.SM.sites.my.towers.wnfu.get_closest_to(self.um.units.my_queen.pos):
             print(f"BUILD {upgrade.id} TOWER")
         elif next_tower:
             print(f"BUILD {next_tower.id} TOWER")
@@ -446,19 +496,61 @@ class GameManager:
         else:
             print("TRAIN")
     
-    def train_big_wave(self):
-        barracks = self.SM.sites.my.barracks.get()
-        barracks.sort(key=lambda barracks: barracks.dist_to(Params.CENTER))
-        ids = []
-        for barrack in barracks:
-            if barrack.busy_turns == 0 and self.gold >= barrack.produces_unit.cost:
-                self.gold -= barrack.produces_unit.cost
-                ids.append(str(barrack.id))
-        id_str = " " + ', '.join(ids)
-        print(f"TRAIN{id_str}")
-    
-    def __repr__(self) -> str:
-        return (f"GameManager []")
+
+
+# game/ReactStrategy.py
+
+
+class ReactStrategy(GameManager):
+    def build(self):
+        enemy_towers = self.SM.sites.enemy.towers.get()
+        # TODO: close_on_my_side
+        site_close = self.SM.sites.buildable.safe(enemy_towers).get_closest_to(self.um.units.my_queen.pos)
+        site_center = self.SM.sites.buildable.safe(enemy_towers).get_closest_to(Params.CENTER)
+        
+        # TODO: not when enemies are close
+        if upgrade := self.SM.sites.my.mines.needs_upgrade.get_closest_to(self.um.units.my_queen.pos):
+            print(f"BUILD {upgrade.id} MINE")
+        elif self.SM.sites.my.mines.len() < Params.TARGET_MINES and site_close:
+            print(f"BUILD {site_close.id} MINE")
+        elif upgrade := self.SM.sites.my.towers.wnfu.get_closest_to(self.um.units.my_queen.pos):
+            print(f"BUILD {upgrade.id} TOWER")
+        elif self.SM.sites.my.towers.len() < Params.TARGET_TOWERS and site_center:
+            print(f"BUILD {site_center.id} TOWER")
+        elif self.SM.sites.my.barracks.produces(UnitType.KNIGHT).len() < Params.TARGET_KNIGHTS_BARRACKS and site_close:
+            print(f"BUILD {site_close.id} BARRACKS-KNIGHT")
+        elif self.SM.sites.my.barracks.produces(UnitType.GIANT).len() < Params.TARGET_GIANTS_BARRACKS and site_close:
+            print(f"BUILD {site_close.id} BARRACKS-GIANT")
+        
+        
+        
+        # if not self.SM.sites.my.mines.len() and next_mine:
+        #     print(f"BUILD {next_mine.id} MINE")
+        # elif upgrade := self.SM.sites.my.mines.needs_upgrade.get_closest_to(self.um.units.my_queen.pos):
+        #     print(f"BUILD {upgrade.id} MINE")
+        # # elif not self.SM.sites.my.produces(UnitType.ARCHER).len() and next_barracks:
+        # #     print(f"BUILD {next_barracks.id} BARRACKS-ARCHER")
+        # elif not self.SM.sites.my.barracks.len() and next_barracks:
+        #     print(f"BUILD {next_barracks.id} BARRACKS-KNIGHT")
+        # elif upgrade := self.SM.sites.my.towers.wnofu.get_closest_to(self.um.units.my_queen.pos):
+        #     print(f"BUILD {upgrade.id} TOWER")
+        # elif next_tower:
+        #     print(f"BUILD {next_tower.id} TOWER")
+        # elif next_mine:
+        #     print(f"BUILD {next_mine.id} MINE")
+        # elif next_barracks:
+        #     print(f"BUILD {next_barracks.id} BARRACKS-GIANT")
+        else:
+            print("WAIT")
+            
+    def train(self):
+        if not self.units_trained and (barracks := self.SM.sites.my.barracks.idle.get_closest_to(Params.CENTER)):
+            self.units_trained = True
+            print(f"TRAIN {barracks.id}")
+        elif self.gold >= Params.SAVING_LIMIT:
+            self.train_big_wave()
+        else:
+            print("TRAIN")
     
 
 
@@ -466,7 +558,7 @@ class GameManager:
 
 
 
-GM = GameManager()
+GM = ReactStrategy()
 
 while True:
     GM.update()

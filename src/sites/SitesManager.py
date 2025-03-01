@@ -31,7 +31,7 @@ class SitesManager:
         # for site in self.__sites_dict.values():
         #     site.side = Side.RIGHT if site.pos[0] >= Params.CENTER[0] else Side.LEFT
     
-    # PlanStrategy
+    # for PlanStrategy, maybe TODO: move there
     def plan_sites(self) -> None:
         sites_in_roi = [site for site in self.__sites_dict.values() if site.is_in_roi(self.start_side)]
         sites_in_roi.sort(key=lambda site: site.pos[0], reverse=self.start_side == Side.LEFT)

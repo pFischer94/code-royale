@@ -12,6 +12,11 @@ import enum
  #####  ####### #     #  #####   #####  #######  ##### 
 
 
+WIDTH = 1920
+HEIGHT = 1000
+CENTER = [int(WIDTH / 2), int(HEIGHT / 2)]
+CENTER_GAP = 300
+    
 class SiteType(enum.Enum):
     EMPTY = -1
     GOLDMINE = 0
@@ -154,15 +159,16 @@ class FriendlySites:
 class SitesManager:
     CENTER_X: int = 980
     
-    def __init__(self):
-        self.__sites_dict: dict[int, Site] = {}
+    @classmethod
+    def from_input(cls):
+        __sites_dict: dict[int, Site] = {}
         
         num_sites = int(input())
         for i in range(num_sites):
             id, x, y, radius = [int(j) for j in input().split()]
-            self.__sites_dict[id] = Site(id, [x, y], radius)
+            __sites_dict[id] = Site(id, [x, y], radius)
             
-        self.sites: list[Site] = [site for site in self.__sites_dict.values()]
+        sites: list[Site] = [site for site in __sites_dict.values()]
     
     def __init__(self, site: Site):
         self.__sites_dict: dict[int, Site] = {}
@@ -277,33 +283,35 @@ def find_n_closest_available_barracks(n: int, sites: dict[int, Site], pos: list[
  #####  #     # #     # #######    ####### ####### ####### #      
 
 
-# while True:
-#     # touched_site: -1 if none
-#     gold, touched_site = [int(i) for i in input().split()]
-    
-#     update_sites(sites)
-#     friendly_sites = FriendlySites(sites)
-#     # print(friendly_sites, file=sys.stderr, flush=True)
+sites = SitesManager()
 
-#     units = update_units()
-#     my_queen, enemy_queen, center_of_towers = get_queens(units, center_of_towers)
+while True:
+    # touched_site: -1 if none
+    gold, touched_site = [int(i) for i in input().split()]
     
-#     build_id = find_closest_safely_buildable_site_id(sites, my_queen.pos)
-#     build_string = get_build_string(build_id, friendly_sites)
-#     print(build_string)
+    sites.update_sites(sites)
+    friendly_sites = FriendlySites(sites)
+    # print(friendly_sites, file=sys.stderr, flush=True)
+
+    units = update_units()
+    my_queen, enemy_queen, center_of_towers = get_queens(units, center_of_towers)
     
-#     train_ids: list[int] = find_n_closest_available_barracks(int(gold / 80), sites, enemy_queen.pos)
-#     train_str: str = ""
-#     for id in train_ids:
-#         train_str += " " + str(id)
-#     print(f"TRAIN{train_str}")
+    build_id = find_closest_safely_buildable_site_id(sites, my_queen.pos)
+    build_string = get_build_string(build_id, friendly_sites)
+    print(build_string)
     
-print("Hello")
-sm = SitesManager(Site(0, [1, 2], 3))
-print(sm.sites)
-print(sm.friendly)
-sm.sites[0].owner = Owner.FRIEND
-print(sm.friendly)
+    train_ids: list[int] = find_n_closest_available_barracks(int(gold / 80), sites, enemy_queen.pos)
+    train_str: str = ""
+    for id in train_ids:
+        train_str += " " + str(id)
+    print(f"TRAIN{train_str}")
+    
+# print("Hello")
+# sm = SitesManager(Site(0, [1, 2], 3))
+# print(sm.sites)
+# print(sm.friendly)
+# sm.sites[0].owner = Owner.FRIEND
+# print(sm.friendly)
 
     
 # TODO: 1: dont rebuild mines
@@ -320,3 +328,6 @@ print(sm.friendly)
 
 # a second mine on mined-out site does not give new gold
 # barracks and mines can be destroyed and built over by queen
+
+# 224 mit nr 7
+# 224 mit nr 6
