@@ -21,9 +21,14 @@ class Params:
     TOWER_SHARE = 0.3
     BARRACKS_AMOUNT = 3
     
-    TOWER_TARGET_RADIUS = 350
+    TOWER_TARGET_RADIUS = 500
     
     SAVING_LIMIT = 200
+    
+    MIN_GOLD_FOR_MINE = 70
+    
+    ENEMY_UNIT_SAFETY_DIST = 300
+    
 
 
 # sites/Side.py
@@ -60,10 +65,11 @@ class UnitType(enum.Enum):
         self.amount = amount
         
     @classmethod
-    def from_type_number(cls, type_number):
+    def from_type_number(cls, type_number) -> "UnitType":
         for unit_type in cls:
             if unit_type.type_number == type_number:
                 return unit_type
+        raise ValueError(f"UnitType with type_number {type_number} not found.")
 
 
 
@@ -143,12 +149,22 @@ class Site:
         else:
             return False
     
-    # def is_inside_tower_range(self, towers: list["Site"]) -> bool:
-    #     for tower in towers:
-    #         dist = self.dist_to(tower.pos)
-    #         if dist < tower.attack_radius:
-    #             return True
-    #     return False
+    # TODO: remove
+    def is_inside_tower_range(self, towers: list["Site"]) -> bool:
+        for tower in towers:
+            dist = self.dist_to(tower.pos)
+            if dist < tower.attack_radius:
+                return True
+        return False
+    
+    def is_too_close_to(self, enemies: list) -> bool:
+        for enemy in enemies:
+            dist = self.dist_to(enemy.pos)
+            if isinstance(enemy, Site) and dist < enemy.attack_radius:
+                return True
+            if isinstance(enemy, Unit) and dist < Params.ENEMY_UNIT_SAFETY_DIST:
+                return True
+        return False
 
     def __repr__(self) -> str:
         shall_be_complete: bool = False
@@ -159,7 +175,7 @@ class Site:
                     f"attack_radius = {self.attack_radius}, produces_unit = {self.produces_unit}, "
                     f"was_once_fully_upgraded = {self.was_once_fully_upgraded}]")
         else:
-            return (f"Site [id = {self.id:2d}, pos = {str(self.pos):12s}, planned: {str(self.planned_type.name):8s}]")
+            return (f"Site [id = {self.id:2d}, pos = {str(self.pos):12s}, planned = {str(self.planned_type.name):8s}]")
     
 
 
@@ -176,8 +192,9 @@ class SitesAccessBuilder:
         return self
     
     @property
-    def enemy(self) -> list[Site]:
-        return [site for site in self.sites if site.owner == Owner.ENEMY]
+    def enemy(self):
+        self.sites = [site for site in self.sites if site.owner == Owner.ENEMY]
+        return self
     
     @property
     def barracks(self):
@@ -209,12 +226,21 @@ class SitesAccessBuilder:
         self.sites = [site for site in self.sites if site.needs_upgrade()]
         return self
     
+    @property
+    def gold_left(self):
+        self.sites = [site for site in self.sites if site.gold > Params.MIN_GOLD_FOR_MINE]
+        return self
+    
     def planned(self, type: SiteType):
         self.sites = [site for site in self.sites if site.planned_type == type and site.is_empty_or_enemy_non_tower()]
         return self
     
     def produces(self, unit_type):
         self.sites = [site for site in self.sites if site.produces_unit == unit_type]
+        return self
+    
+    def safe(self, enemies: list[Site]):
+        self.sites = [site for site in self.sites if not site.is_too_close_to(enemies)]
         return self
     
     def get(self) -> list[Site]:
@@ -257,8 +283,9 @@ class SitesManager:
     
     def save_start_side(self, queen_pos: list[int]) -> None:
         self.start_side = Side.RIGHT if queen_pos[0] >= Params.CENTER[0] else Side.LEFT
-        for site in self.__sites_dict.values():
-            site.side = Side.RIGHT if site.pos[0] >= Params.CENTER[0] else Side.LEFT
+        # TODO: remove
+        # for site in self.__sites_dict.values():
+        #     site.side = Side.RIGHT if site.pos[0] >= Params.CENTER[0] else Side.LEFT
     
     def plan_sites(self) -> None:
         sites_in_roi = [site for site in self.__sites_dict.values() if site.is_in_roi(self.start_side)]
@@ -313,6 +340,11 @@ class UnitsAccessBuilder:
     def my_queen(self) -> Unit:
         return [unit for unit in self.units if unit.type == UnitType.QUEEN and unit.owner == Owner.FRIEND][0]
     
+    @property
+    def enemy(self):
+        self.units = [unit for unit in self.units if unit.owner == Owner.ENEMY]
+        return self
+    
     # @property
     # def friendly(self) -> list[Unit]:
     #     return [unit for unit in self.units if unit.owner == Owner.FRIENDLY]
@@ -321,8 +353,8 @@ class UnitsAccessBuilder:
     # def enemy(self) -> list[Unit]:
     #     return [unit for unit in self.units if unit.owner == Owner.ENEMY]
     
-    # def get(self) -> list[Unit]:
-    #     return self.units
+    def get(self) -> list[Unit]:
+        return self.units
     
     def __repr__(self) -> str:
         return f"UnitsAccessBuilder [units = {self.units}]"
@@ -381,8 +413,10 @@ class GameManager:
     # 4 towers in middle, dont upgrade
     def build(self):
         next_barracks = self.SM.sites.planned(SiteType.BARRACKS).get_closest_to(self.um.units.my_queen.pos)
-        next_tower = self.SM.sites.planned(SiteType.TOWER).get_closest_to(self.um.units.my_queen.pos)
-        next_mine = self.SM.sites.planned(SiteType.MINE).get_closest_to(self.um.units.my_queen.pos)
+        enemy_towers = self.SM.sites.enemy.towers.get()
+        next_tower = self.SM.sites.planned(SiteType.TOWER).safe(enemy_towers).get_closest_to(self.um.units.my_queen.pos)
+        enemy_units = self.um.units.enemy.get()
+        next_mine = self.SM.sites.planned(SiteType.MINE).gold_left.safe(enemy_units).get_closest_to(self.um.units.my_queen.pos)
         
         if not self.SM.sites.my.mines.len() and next_mine:
             print(f"BUILD {next_mine.id} MINE")
@@ -398,6 +432,8 @@ class GameManager:
             print(f"BUILD {next_tower.id} TOWER")
         elif next_mine:
             print(f"BUILD {next_mine.id} MINE")
+        elif next_barracks:
+            print(f"BUILD {next_barracks.id} BARRACKS-GIANT")
         else:
             print("WAIT")
             
@@ -417,8 +453,8 @@ class GameManager:
         for barrack in barracks:
             if barrack.busy_turns == 0 and self.gold >= barrack.produces_unit.cost:
                 self.gold -= barrack.produces_unit.cost
-                ids.append(barrack.id)
-        id_str = " " + ', '.join(str(ids))
+                ids.append(str(barrack.id))
+        id_str = " " + ', '.join(ids)
         print(f"TRAIN{id_str}")
     
     def __repr__(self) -> str:

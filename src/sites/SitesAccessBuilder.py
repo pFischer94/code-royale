@@ -15,8 +15,9 @@ class SitesAccessBuilder:
         return self
     
     @property
-    def enemy(self) -> list[Site]:
-        return [site for site in self.sites if site.owner == Owner.ENEMY]
+    def enemy(self):
+        self.sites = [site for site in self.sites if site.owner == Owner.ENEMY]
+        return self
     
     @property
     def barracks(self):
@@ -48,12 +49,21 @@ class SitesAccessBuilder:
         self.sites = [site for site in self.sites if site.needs_upgrade()]
         return self
     
+    @property
+    def gold_left(self):
+        self.sites = [site for site in self.sites if site.gold > Params.MIN_GOLD_FOR_MINE]
+        return self
+    
     def planned(self, type: SiteType):
         self.sites = [site for site in self.sites if site.planned_type == type and site.is_empty_or_enemy_non_tower()]
         return self
     
     def produces(self, unit_type):
         self.sites = [site for site in self.sites if site.produces_unit == unit_type]
+        return self
+    
+    def safe(self, enemies: list[Site]):
+        self.sites = [site for site in self.sites if not site.is_too_close_to(enemies)]
         return self
     
     def get(self) -> list[Site]:

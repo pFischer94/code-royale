@@ -27,12 +27,15 @@ class SitesManager:
     
     def save_start_side(self, queen_pos: list[int]) -> None:
         self.start_side = Side.RIGHT if queen_pos[0] >= Params.CENTER[0] else Side.LEFT
-        for site in self.__sites_dict.values():
-            site.side = Side.RIGHT if site.pos[0] >= Params.CENTER[0] else Side.LEFT
+        # TODO: remove
+        # for site in self.__sites_dict.values():
+        #     site.side = Side.RIGHT if site.pos[0] >= Params.CENTER[0] else Side.LEFT
     
+    # PlanStrategy
     def plan_sites(self) -> None:
         sites_in_roi = [site for site in self.__sites_dict.values() if site.is_in_roi(self.start_side)]
         sites_in_roi.sort(key=lambda site: site.pos[0], reverse=self.start_side == Side.LEFT)
+        # TODO: plan towers close to center
         print(len(sites_in_roi), file=sys.stderr, flush=True)
         tower_amount = Params.TOWER_SHARE * len(sites_in_roi)
         for i in range(len(sites_in_roi)):

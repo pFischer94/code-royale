@@ -6,6 +6,7 @@ from params import Params
 from sites.Side import Side
 from sites.SiteType import SiteType
 from units.UnitType import UnitType
+from units.Unit import Unit
 
 class Site:
     def __init__(self, id: int, pos: list[int], radius: int):
@@ -71,12 +72,22 @@ class Site:
         else:
             return False
     
-    # def is_inside_tower_range(self, towers: list["Site"]) -> bool:
-    #     for tower in towers:
-    #         dist = self.dist_to(tower.pos)
-    #         if dist < tower.attack_radius:
-    #             return True
-    #     return False
+    # TODO: remove
+    def is_inside_tower_range(self, towers: list["Site"]) -> bool:
+        for tower in towers:
+            dist = self.dist_to(tower.pos)
+            if dist < tower.attack_radius:
+                return True
+        return False
+    
+    def is_too_close_to(self, enemies: list) -> bool:
+        for enemy in enemies:
+            dist = self.dist_to(enemy.pos)
+            if isinstance(enemy, Site) and dist < enemy.attack_radius:
+                return True
+            if isinstance(enemy, Unit) and dist < Params.ENEMY_UNIT_SAFETY_DIST:
+                return True
+        return False
 
     def __repr__(self) -> str:
         shall_be_complete: bool = False
@@ -87,5 +98,5 @@ class Site:
                     f"attack_radius = {self.attack_radius}, produces_unit = {self.produces_unit}, "
                     f"was_once_fully_upgraded = {self.was_once_fully_upgraded}]")
         else:
-            return (f"Site [id = {self.id:2d}, pos = {str(self.pos):12s}, planned: {str(self.planned_type.name):8s}]")
+            return (f"Site [id = {self.id:2d}, pos = {str(self.pos):12s}, planned = {str(self.planned_type.name):8s}]")
     

@@ -13,7 +13,8 @@ class UnitType(enum.Enum):
         self.amount = amount
         
     @classmethod
-    def from_type_number(cls, type_number):
+    def from_type_number(cls, type_number) -> "UnitType":
         for unit_type in cls:
             if unit_type.type_number == type_number:
                 return unit_type
+        raise ValueError(f"UnitType with type_number {type_number} not found.")

@@ -31,8 +31,12 @@ class GameManager:
     # 4 towers in middle, dont upgrade
     def build(self):
         next_barracks = self.SM.sites.planned(SiteType.BARRACKS).get_closest_to(self.um.units.my_queen.pos)
-        next_tower = self.SM.sites.planned(SiteType.TOWER).get_closest_to(self.um.units.my_queen.pos)
-        next_mine = self.SM.sites.planned(SiteType.MINE).get_closest_to(self.um.units.my_queen.pos)
+        enemy_towers = self.SM.sites.enemy.towers.get()
+        # TODO: build towers closer to center
+        next_tower = self.SM.sites.planned(SiteType.TOWER).safe(enemy_towers).get_closest_to(self.um.units.my_queen.pos)
+        enemy_units = self.um.units.enemy.get()
+        # TODO: if not safe build tower instead
+        next_mine = self.SM.sites.planned(SiteType.MINE).gold_left.safe(enemy_units).get_closest_to(self.um.units.my_queen.pos)
         
         if not self.SM.sites.my.mines.len() and next_mine:
             print(f"BUILD {next_mine.id} MINE")
@@ -48,6 +52,8 @@ class GameManager:
             print(f"BUILD {next_tower.id} TOWER")
         elif next_mine:
             print(f"BUILD {next_mine.id} MINE")
+        elif next_barracks:
+            print(f"BUILD {next_barracks.id} BARRACKS-GIANT")
         else:
             print("WAIT")
             
@@ -67,10 +73,12 @@ class GameManager:
         for barrack in barracks:
             if barrack.busy_turns == 0 and self.gold >= barrack.produces_unit.cost:
                 self.gold -= barrack.produces_unit.cost
-                ids.append(barrack.id)
-        id_str = " " + ', '.join(str(ids))
+                ids.append(str(barrack.id))
+        id_str = " " + ', '.join(ids)
         print(f"TRAIN{id_str}")
     
     def __repr__(self) -> str:
         return (f"GameManager []")
+    
+    # TODO: save strategy, start new one without fixed site planning
     
