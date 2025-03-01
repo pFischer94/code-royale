@@ -13,7 +13,7 @@ class UnitsManager:
         num_units = int(input())
         for i in range(num_units):
             x, y, owner, type, health = [int(j) for j in input().split()]
-            units.append(Unit([x, y], UnitType(type), Owner(owner), health))
+            units.append(Unit([x, y], UnitType.from_type_number(type), Owner(owner), health))
         return cls(units)
     
     @property

@@ -19,6 +19,7 @@ paths: list[str] = [
     "units/Unit.py",
     "units/UnitsAccessBuilder.py",
     "units/UnitsManager.py",
+    "game/GameManager.py",
     
     # MAIN
     "main.py",

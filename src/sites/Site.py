@@ -54,11 +54,14 @@ class Site:
         elif self.type == SiteType.BARRACKS:
             self.max_gold_rate = 0
             self.busy_turns = param_1
-            self.produces_unit = UnitType(param_2)
-       
+            self.produces_unit = UnitType.from_type_number(param_2)
+    
     def is_empty_or_enemy_non_tower(self) -> bool:
         return self.type == SiteType.EMPTY or (self.owner == Owner.ENEMY and self.type != SiteType.TOWER)
-         
+        
+    def is_buildable(self, start_side):
+        return self.side == start_side and self.is_empty_or_enemy_non_tower()
+    
     # def is_inside_tower_range(self, towers: list["Site"]) -> bool:
     #     for tower in towers:
     #         dist = self.dist_to(tower.pos)

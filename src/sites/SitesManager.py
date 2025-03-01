@@ -23,12 +23,14 @@ class SitesManager:
             self.__sites_dict[id].update(gold, max_gold_rate, type_id, owner_id, param_1, param_2)
     
     def save_start_side(self, queen_pos: list[int]) -> None:
-        self.start_side = Side.RIGHT if queen_pos[0] >= Params.MIDDLE[0] else Side.LEFT
+        self.start_side = Side.RIGHT if queen_pos[0] >= Params.CENTER[0] else Side.LEFT
         for site in self.__sites_dict.values():
-            site.side = Side.RIGHT if site.pos[0] >= Params.MIDDLE[0] else Side.LEFT
+            site.side = Side.RIGHT if site.pos[0] >= Params.CENTER[0] else Side.LEFT
     
     @property
     def sites(self) -> SitesAccessBuilder:
+        """Generates new SitesAccessBuilder with all sites and start_side."""
+        
         return SitesAccessBuilder([site for site in self.__sites_dict.values()], self.start_side)
     
     def __repr__(self):
