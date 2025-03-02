@@ -1,14 +1,15 @@
 import sys
 
-from game.GameManager import PlanStrategy
-from game.GameManager import ReactStrategy
+from game.PlanStrategy import PlanStrategy
+from game.ReactStrategy import ReactStrategy
+from game.OldStrategy import OldStrategy
 from params import Params
 from sites.Side import Side
 from sites.SitesManager import SitesManager
 from units.UnitsManager import UnitsManager
 
 
-GM = ReactStrategy()
+GM = OldStrategy()
 
 while True:
     GM.update()

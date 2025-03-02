@@ -22,6 +22,14 @@ class GameManager:
         self.build()
         self.train()
     
+    @property
+    def sites(self):
+        return self.SM.sites
+    
+    @property
+    def units(self):
+        return self.um.units
+    
     def update(self) -> None:
         self.gold, self.touched_site = [int(i) for i in input().split()]
         self.SM.update_from_input()

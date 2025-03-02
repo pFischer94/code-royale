@@ -59,6 +59,16 @@ class SitesAccessBuilder:
         self.sites = [site for site in self.sites if site.is_buildable()]
         return self
     
+    @property
+    def empty(self):
+        self.sites = [site for site in self.sites if site.type == SiteType.EMPTY]
+        return self
+    
+    @property
+    def furthest_back(self):
+        self.sites = sorted(self.sites, key=lambda site: site.pos[0], reverse=self.start_side == Side.RIGHT)
+        return self
+    
     def planned(self, type: SiteType):
         self.sites = [site for site in self.sites if site.planned_type == type and site.is_buildable()]
         return self

@@ -330,4 +330,5 @@ while True:
 # barracks and mines can be destroyed and built over by queen
 
 # 224 mit nr 7
-# 224 mit nr 6
+# 87?
+# 221 mit nr 6

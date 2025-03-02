@@ -28,7 +28,7 @@ class Params:
     
     # ReactStrategy
     TARGET_MINES = 3
-    TARGET_TOWERS = 4
-    TARGET_KNIGHTS_BARRACKS = 2
+    TARGET_TOWERS = 3
+    TARGET_KNIGHTS_BARRACKS = 1
     TARGET_GIANTS_BARRACKS = 1
     

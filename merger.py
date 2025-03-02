@@ -22,6 +22,7 @@ paths: list[str] = [
     "game/GameManager.py",
     "game/PlanStrategy.py",
     "game/ReactStrategy.py",
+    "game/OldStrategy.py",
     
     # MAIN
     "main.py",

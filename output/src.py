@@ -34,8 +34,8 @@ class Params:
     
     # ReactStrategy
     TARGET_MINES = 3
-    TARGET_TOWERS = 4
-    TARGET_KNIGHTS_BARRACKS = 2
+    TARGET_TOWERS = 3
+    TARGET_KNIGHTS_BARRACKS = 1
     TARGET_GIANTS_BARRACKS = 1
     
 
@@ -247,6 +247,16 @@ class SitesAccessBuilder:
         self.sites = [site for site in self.sites if site.is_buildable()]
         return self
     
+    @property
+    def empty(self):
+        self.sites = [site for site in self.sites if site.type == SiteType.EMPTY]
+        return self
+    
+    @property
+    def furthest_back(self):
+        self.sites = sorted(self.sites, key=lambda site: site.pos[0], reverse=self.start_side == Side.RIGHT)
+        return self
+    
     def planned(self, type: SiteType):
         self.sites = [site for site in self.sites if site.planned_type == type and site.is_buildable()]
         return self
@@ -422,6 +432,14 @@ class GameManager:
         self.build()
         self.train()
     
+    @property
+    def sites(self):
+        return self.SM.sites
+    
+    @property
+    def units(self):
+        return self.um.units
+    
     def update(self) -> None:
         self.gold, self.touched_site = [int(i) for i in input().split()]
         self.SM.update_from_input()
@@ -554,11 +572,63 @@ class ReactStrategy(GameManager):
     
 
 
+# game/OldStrategy.py
+
+
+class OldStrategy(GameManager):
+    def build(self):
+        # TODO: test buildable instead of empty
+        closest_empty_site = self.sites.empty.get_closest_to(self.units.my_queen.pos)
+        upgradeable_mines = sorted(self.sites.my.mines.needs_upgrade.get(), key=lambda site: site.dist_to(self.units.my_queen.pos))
+        upgradeable_towers = sorted(self.sites.my.towers.wnfu.get(), key=lambda site: site.dist_to(self.units.my_queen.pos))
+        mine_sites = self.sites.empty.furthest_back.get()
+        tower_sites = sorted(sorted(self.sites.empty.get(), key=lambda site: site.dist_to(Params.CENTER))[0:3], key=lambda site: site.dist_to(self.units.my_queen.pos))
+        
+        if upgradeable_mines:
+            print(f"BUILD {upgradeable_mines[0].id} MINE")
+        elif self.sites.my.mines.len() < Params.TARGET_MINES and closest_empty_site:
+            print(f"BUILD {closest_empty_site.id} MINE")
+            
+        elif self.sites.my.barracks.produces(UnitType.KNIGHT).len() < Params.TARGET_KNIGHTS_BARRACKS and closest_empty_site:
+            print(f"BUILD {closest_empty_site.id} BARRACKS-KNIGHT")
+        
+        elif upgradeable_towers:
+            print(f"BUILD {upgradeable_towers[0].id} TOWER")
+        elif self.sites.my.towers.len() < Params.TARGET_TOWERS and tower_sites:
+            print(f"BUILD {tower_sites[0].id} TOWER")
+            
+        elif self.sites.my.barracks.produces(UnitType.GIANT).len() < Params.TARGET_GIANTS_BARRACKS and closest_empty_site:
+            print(f"BUILD {closest_empty_site.id} BARRACKS-GIANT")
+        
+        elif mine_sites:
+            print(f"BUILD {mine_sites[0].id} MINE")
+        
+        else:
+            print(f"WAIT")
+            
+    def train(self):
+        barracks = sorted(self.sites.my.barracks.idle.get(), key=lambda site: site.produces_unit.value)
+        
+        ids = []
+        for barrack in barracks:
+            if (self.gold >= barrack.produces_unit.cost):
+                ids.append(str(barrack.id))
+                self.gold -= barrack.produces_unit.cost
+        if ids:
+            id_str = ""
+            for id in ids:
+                id_str += " " + id
+            print(f"TRAIN{id_str}")
+        else:
+            print(f"TRAIN")
+    
+
+
 # main.py
 
 
 
-GM = ReactStrategy()
+GM = OldStrategy()
 
 while True:
     GM.update()
