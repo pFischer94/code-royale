@@ -256,8 +256,9 @@ def get_build_string(closest_empty_site: Site, friendly_sites: FriendlySites, en
     else:
         outest_tower = friendly_sites.find_outest_tower()
         if (outest_tower):
-            return f"MOVE {outest_tower.pos[0]} {outest_tower.pos[1]}"
+            return f"BUILD {outest_tower.id} TOWER"
         else:
+            # TODO: move to outside
             return "WAIT"
     
 def find_closest_empty_site_to_pos(sites: dict[int, Site], pos: list[int], enemy_towers) -> Site | None:
