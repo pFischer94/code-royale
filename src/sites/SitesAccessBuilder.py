@@ -50,8 +50,8 @@ class SitesAccessBuilder:
         return self
     
     @property
-    def gold_left(self):
-        self.sites = [site for site in self.sites if site.gold > Params.MIN_GOLD_FOR_MINE]
+    def enough_gold(self):
+        self.sites = [site for site in self.sites if site.gold >= Params.MIN_GOLD_FOR_MINE]
         return self
     
     @property
@@ -62,6 +62,11 @@ class SitesAccessBuilder:
     @property
     def empty(self):
         self.sites = [site for site in self.sites if site.type == SiteType.EMPTY]
+        return self
+    
+    @property
+    def my_side(self):
+        self.sites = [site for site in self.sites if site.is_in_roi(self.start_side)]
         return self
     
     @property

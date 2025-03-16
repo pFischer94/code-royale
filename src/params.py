@@ -14,12 +14,12 @@ class Params:
     
     TOWER_TARGET_RADIUS = 500
     # TODO: refine
-    TOWER_MIN_RADIUS = 70
+    TOWER_MIN_RADIUS = 270
 
     SAVING_LIMIT = 200
     
     MIN_GOLD_FOR_MINE = 70
-    
+    # TODO: refine
     ENEMY_UNIT_SAFETY_DIST = 300
     
     # PlanStrategy
@@ -31,4 +31,7 @@ class Params:
     TARGET_TOWERS = 3
     TARGET_KNIGHTS_BARRACKS = 1
     TARGET_GIANTS_BARRACKS = 1
+    
+    ENEMY_KNIGHT_SAFETY_DIST = 400
+    MIN_QUEEN_HEALTH = 10
     

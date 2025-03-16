@@ -15,7 +15,7 @@ class PlanStrategy(GameManager):
         next_tower = self.SM.sites.planned(SiteType.TOWER).safe(enemy_towers).get_closest_to(self.um.units.my_queen.pos)
         enemy_units = self.um.units.enemy.get()
         # TODO: if not safe build tower instead
-        next_mine = self.SM.sites.planned(SiteType.MINE).gold_left.safe(enemy_units).get_closest_to(self.um.units.my_queen.pos)
+        next_mine = self.SM.sites.planned(SiteType.MINE).enough_gold.safe(enemy_units).get_closest_to(self.um.units.my_queen.pos)
         
         if not self.SM.sites.my.mines.len() and next_mine:
             print(f"BUILD {next_mine.id} MINE")

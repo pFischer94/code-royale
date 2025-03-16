@@ -20,12 +20,12 @@ class Params:
     
     TOWER_TARGET_RADIUS = 500
     # TODO: refine
-    TOWER_MIN_RADIUS = 70
+    TOWER_MIN_RADIUS = 270
 
     SAVING_LIMIT = 200
     
     MIN_GOLD_FOR_MINE = 70
-    
+    # TODO: refine
     ENEMY_UNIT_SAFETY_DIST = 300
     
     # PlanStrategy
@@ -37,6 +37,9 @@ class Params:
     TARGET_TOWERS = 3
     TARGET_KNIGHTS_BARRACKS = 1
     TARGET_GIANTS_BARRACKS = 1
+    
+    ENEMY_KNIGHT_SAFETY_DIST = 400
+    MIN_QUEEN_HEALTH = 10
     
 
 
@@ -137,7 +140,7 @@ class Site:
             self.max_gold_rate = 0
             self.hp = param_1
             self.attack_radius = param_2
-            if self.attack_radius > Params.TOWER_TARGET_RADIUS:
+            if self.attack_radius >= Params.TOWER_TARGET_RADIUS:
                 self.was_fully_upgraded = True
             elif self.attack_radius < Params.TOWER_MIN_RADIUS:
                 self.was_fully_upgraded = False
@@ -160,17 +163,10 @@ class Site:
         else:
             return False
     
-    # TODO: remove
-    def is_inside_tower_range(self, towers: list["Site"]) -> bool:
-        for tower in towers:
-            dist = self.dist_to(tower.pos)
-            if dist < tower.attack_radius:
-                return True
-        return False
-    
     def is_too_close_to(self, enemies: list) -> bool:
         for enemy in enemies:
             dist = self.dist_to(enemy.pos)
+            # TODO: add puffer to dist?
             if isinstance(enemy, Site) and dist < enemy.attack_radius:
                 return True
             if isinstance(enemy, Unit) and dist < Params.ENEMY_UNIT_SAFETY_DIST:
@@ -238,8 +234,8 @@ class SitesAccessBuilder:
         return self
     
     @property
-    def gold_left(self):
-        self.sites = [site for site in self.sites if site.gold > Params.MIN_GOLD_FOR_MINE]
+    def enough_gold(self):
+        self.sites = [site for site in self.sites if site.gold >= Params.MIN_GOLD_FOR_MINE]
         return self
     
     @property
@@ -250,6 +246,11 @@ class SitesAccessBuilder:
     @property
     def empty(self):
         self.sites = [site for site in self.sites if site.type == SiteType.EMPTY]
+        return self
+    
+    @property
+    def my_side(self):
+        self.sites = [site for site in self.sites if site.is_in_roi(self.start_side)]
         return self
     
     @property
@@ -309,9 +310,6 @@ class SitesManager:
     
     def save_start_side(self, queen_pos: list[int]) -> None:
         self.start_side = Side.RIGHT if queen_pos[0] >= Params.CENTER[0] else Side.LEFT
-        # TODO: remove
-        # for site in self.__sites_dict.values():
-        #     site.side = Side.RIGHT if site.pos[0] >= Params.CENTER[0] else Side.LEFT
     
     # for PlanStrategy, maybe TODO: move there
     def plan_sites(self) -> None:
@@ -346,12 +344,16 @@ class SitesManager:
 
 # units/Unit.py
 
+
 class Unit:
     def __init__(self, pos: list[int], type: UnitType, owner: Owner, health: int):
         self.pos = pos
         self.type = type
         self.owner = owner
         self.health = health
+    
+    def dist_to(self, pos: list[int]) -> float:
+        return math.dist(self.pos, pos)
     
     def __repr__(self):
         return (f"Unit [pos = {self.pos}, type = {self.type}, owner = {self.owner}, health = {self.health}]")
@@ -373,16 +375,25 @@ class UnitsAccessBuilder:
         self.units = [unit for unit in self.units if unit.owner == Owner.ENEMY]
         return self
     
-    # @property
-    # def friendly(self) -> list[Unit]:
-    #     return [unit for unit in self.units if unit.owner == Owner.FRIENDLY]
+    @property
+    def knights(self):
+        self.units = [unit for unit in self.units if unit.type == UnitType.KNIGHT]
+        return self
     
-    # @property
-    # def enemy(self) -> list[Unit]:
-    #     return [unit for unit in self.units if unit.owner == Owner.ENEMY]
+    def min_dist_to(self, pos: list[int]) -> int:
+        if not self.units:
+            return 0
+        return min([unit.dist_to(pos) for unit in self.units])
     
     def get(self) -> list[Unit]:
         return self.units
+    
+    def get_closest_to(self, pos: list[int]) -> Unit:
+        closest = sorted(self.units, key=lambda unit: unit.dist_to(pos))
+        if closest:
+            return closest[0]
+        else:
+            return None
     
     def __repr__(self) -> str:
         return f"UnitsAccessBuilder [units = {self.units}]"
@@ -484,7 +495,7 @@ class PlanStrategy(GameManager):
         next_tower = self.SM.sites.planned(SiteType.TOWER).safe(enemy_towers).get_closest_to(self.um.units.my_queen.pos)
         enemy_units = self.um.units.enemy.get()
         # TODO: if not safe build tower instead
-        next_mine = self.SM.sites.planned(SiteType.MINE).gold_left.safe(enemy_units).get_closest_to(self.um.units.my_queen.pos)
+        next_mine = self.SM.sites.planned(SiteType.MINE).enough_gold.safe(enemy_units).get_closest_to(self.um.units.my_queen.pos)
         
         if not self.SM.sites.my.mines.len() and next_mine:
             print(f"BUILD {next_mine.id} MINE")
@@ -577,34 +588,64 @@ class ReactStrategy(GameManager):
 
 class OldStrategy(GameManager):
     def build(self):
-        # TODO: test buildable instead of empty
-        closest_empty_site = self.sites.empty.get_closest_to(self.units.my_queen.pos)
-        upgradeable_mines = sorted(self.sites.my.mines.needs_upgrade.get(), key=lambda site: site.dist_to(self.units.my_queen.pos))
-        upgradeable_towers = sorted(self.sites.my.towers.wnfu.get(), key=lambda site: site.dist_to(self.units.my_queen.pos))
-        mine_sites = self.sites.empty.furthest_back.get()
-        tower_sites = sorted(sorted(self.sites.empty.get(), key=lambda site: site.dist_to(Params.CENTER))[0:3], key=lambda site: site.dist_to(self.units.my_queen.pos))
+        # TODO: barracks later, driven by gold
+        # TODO: late game: more mines, giants, save gold for huge wave?
         
-        if upgradeable_mines:
+        enemy_units = self.units.enemy.get()
+        enemy_towers = self.sites.enemy.towers.get()
+        # TODO: test buildable instead of empty everywhere
+        # TODO: ignore enemy towers?
+        upgradeable_mines = sorted(self.sites.my.mines.needs_upgrade.safe(enemy_towers + enemy_units).get(), 
+                                   key=lambda site: site.dist_to(self.units.my_queen.pos))
+        # TODO: safe from enemy towers?
+        upgradeable_towers = sorted(self.sites.my.towers.wnfu.get(), 
+                                    key=lambda site: site.dist_to(self.units.my_queen.pos))
+        closest_empty_site = self.sites.empty.safe(enemy_towers).get_closest_to(self.units.my_queen.pos)
+        closest_empty_site_for_mine = self.sites.empty.enough_gold.safe(enemy_towers + enemy_units).get_closest_to(self.units.my_queen.pos)
+        
+        # tower_sites = sorted(sorted(self.sites.my_side.empty.get(), key=lambda site: site.dist_to(Params.CENTER))[0:3], key=lambda site: site.dist_to(self.units.my_queen.pos))
+        # mine_sites = self.sites.empty.enough_gold.furthest_back.get()
+        # is_queen_safe = self.units.enemy.knights.min_dist_to(self.units.my_queen.pos) <= Params.ENEMY_KNIGHT_SAFETY_DIST
+        
+        print("closest_empty_site_for_mine:", closest_empty_site_for_mine, file=sys.stderr, flush=True)
+        # print("is_queen_safe:", is_queen_safe, file=sys.stderr, flush=True)
+        
+        if self.units.my_queen.health < Params.MIN_QUEEN_HEALTH:
+            hide_x = Params.WIDTH if self.SM.start_side == Side.RIGHT else 0
+            print(f"MOVE {hide_x} {int(Params.HEIGHT / 2)}")
+        
+        # MINES
+        elif upgradeable_mines:
             print(f"BUILD {upgradeable_mines[0].id} MINE")
-        elif self.sites.my.mines.len() < Params.TARGET_MINES and closest_empty_site:
-            print(f"BUILD {closest_empty_site.id} MINE")
+        elif self.sites.my.mines.len() < Params.TARGET_MINES and closest_empty_site_for_mine:
+            print(f"BUILD {closest_empty_site_for_mine.id} MINE")
             
+        # BARRACKS KNIGHT
         elif self.sites.my.barracks.produces(UnitType.KNIGHT).len() < Params.TARGET_KNIGHTS_BARRACKS and closest_empty_site:
             print(f"BUILD {closest_empty_site.id} BARRACKS-KNIGHT")
         
+        # TOWERS
         elif upgradeable_towers:
             print(f"BUILD {upgradeable_towers[0].id} TOWER")
-        elif self.sites.my.towers.len() < Params.TARGET_TOWERS and tower_sites:
-            print(f"BUILD {tower_sites[0].id} TOWER")
+        elif self.sites.my.towers.len() < Params.TARGET_TOWERS and closest_empty_site:
+            print(f"BUILD {closest_empty_site.id} TOWER")
             
-        elif self.sites.my.barracks.produces(UnitType.GIANT).len() < Params.TARGET_GIANTS_BARRACKS and closest_empty_site:
-            print(f"BUILD {closest_empty_site.id} BARRACKS-GIANT")
+        # # BARRACKS GIANT
+        # elif self.sites.my.barracks.produces(UnitType.GIANT).len() < Params.TARGET_GIANTS_BARRACKS and closest_empty_site:
+        #     print(f"BUILD {closest_empty_site.id} BARRACKS-GIANT")
         
-        elif mine_sites:
-            print(f"BUILD {mine_sites[0].id} MINE")
+        # MINE OR TOWER
+        elif closest_empty_site_for_mine: # and is_queen_safe:
+            # TODO: furthest back?
+            print(f"BUILD {closest_empty_site_for_mine.id} MINE")
+        elif closest_empty_site:
+            print(f"BUILD {closest_empty_site.id} TOWER")
         
+        # HIDE
         else:
-            print(f"WAIT")
+            # TODO: extract private method
+            hide_x = Params.WIDTH if self.SM.start_side == Side.RIGHT else 0
+            print(f"MOVE {hide_x} {int(Params.HEIGHT / 2)}")
             
     def train(self):
         barracks = sorted(self.sites.my.barracks.idle.get(), key=lambda site: site.produces_unit.value)

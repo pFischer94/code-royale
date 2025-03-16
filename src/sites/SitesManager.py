@@ -27,9 +27,6 @@ class SitesManager:
     
     def save_start_side(self, queen_pos: list[int]) -> None:
         self.start_side = Side.RIGHT if queen_pos[0] >= Params.CENTER[0] else Side.LEFT
-        # TODO: remove
-        # for site in self.__sites_dict.values():
-        #     site.side = Side.RIGHT if site.pos[0] >= Params.CENTER[0] else Side.LEFT
     
     # for PlanStrategy, maybe TODO: move there
     def plan_sites(self) -> None:

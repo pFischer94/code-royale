@@ -51,7 +51,7 @@ class Site:
             self.max_gold_rate = 0
             self.hp = param_1
             self.attack_radius = param_2
-            if self.attack_radius > Params.TOWER_TARGET_RADIUS:
+            if self.attack_radius >= Params.TOWER_TARGET_RADIUS:
                 self.was_fully_upgraded = True
             elif self.attack_radius < Params.TOWER_MIN_RADIUS:
                 self.was_fully_upgraded = False
@@ -74,17 +74,10 @@ class Site:
         else:
             return False
     
-    # TODO: remove
-    def is_inside_tower_range(self, towers: list["Site"]) -> bool:
-        for tower in towers:
-            dist = self.dist_to(tower.pos)
-            if dist < tower.attack_radius:
-                return True
-        return False
-    
     def is_too_close_to(self, enemies: list) -> bool:
         for enemy in enemies:
             dist = self.dist_to(enemy.pos)
+            # TODO: add puffer to dist?
             if isinstance(enemy, Site) and dist < enemy.attack_radius:
                 return True
             if isinstance(enemy, Unit) and dist < Params.ENEMY_UNIT_SAFETY_DIST:

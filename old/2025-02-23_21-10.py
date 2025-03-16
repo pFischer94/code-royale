@@ -169,6 +169,11 @@ def get_build_string(closest_empty_side_id: int, friendly_sites: FriendlySites) 
     upgradeable_mines = friendly_sites.get_mines_to_upgrade()
     upgradeable_towers = friendly_sites.get_towers_to_upgrade()
     
+    # TODO: 1: dont build mine when creeps close, and not with no gold
+    # TODO: 2: dont run in towers
+    # TODO: 3: no more empty sites
+    # TODO: 4: late game: more mines, giants, save gold for huge wave?
+    
     # mines
     if len(upgradeable_mines) > 0:
         return f"BUILD {upgradeable_mines[0].id} MINE"
